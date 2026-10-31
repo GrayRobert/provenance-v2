@@ -18,6 +18,11 @@ jobs:
       - name: Overlay app files onto repo root and source/ (sample assets already committed)
         run: |
           unzip -oq /tmp/root-app.zip -d .
+          
+          rm -rf source
+
+          mkdir -p source
+
           unzip -oq /tmp/source-app.zip -d source
       - name: Commit and push
         run: |
