@@ -4,6 +4,7 @@
  */
 
 import type { AudioEngineState, AudioRegion, ExportRecordingItem, InputMonitoringMode, TrackState, WaveformPyramid } from './types';
+import { peakFromByteTimeDomain } from './meterUtils';
 
 const TRACK_COLORS = ['#f6992c', '#22c55e', '#3b82f6', '#a855f7']; /* orange, green, blue, purple */
 
@@ -261,6 +262,8 @@ export function createAudioEngine() {
   /** ~6 ms to match DynamicsCompressorNode look-ahead so compressor return lines up with dry/reverb/delay. */
   const COMPENSATION_DELAY_S = 0.006;
   let masterGainNode: GainNode | null = null;
+  /** Post-fader master bus tap for the footer master meter. Audio passes through unchanged. */
+  let masterAnalyser: AnalyserNode | null = null;
   let auxGainNode: GainNode | null = null;
   let delayInputGainNode: GainNode | null = null;
   let delayNode: DelayNode | null = null;
@@ -304,6 +307,7 @@ export function createAudioEngine() {
   let recordingStartTimelinePosition = 0;
   /** Throttle input level setState to ~10fps to avoid 60fps subscription → updateUI → forced reflow storm when Track Lab is open. */
   let lastInputLevelUpdateMs = 0;
+  let lastMasterLevelUpdateMs = 0;
   const INPUT_LEVEL_THROTTLE_MS = 100;
   let metronomeInterval: ReturnType<typeof setInterval> | null = null;
   let countInInterval: ReturnType<typeof setInterval> | null = null;
@@ -311,6 +315,7 @@ export function createAudioEngine() {
   let isPlaying = false;
   const listeners: StateListener[] = [];
   const inputLevelListeners: ((level: number) => void)[] = [];
+  const masterLevelListeners: ((level: number) => void)[] = [];
   const metronomeTickListeners: MetronomeTickListener[] = [];
 
   let state: AudioEngineState = {
@@ -327,6 +332,7 @@ export function createAudioEngine() {
     isCountingIn: false,
     currentCountInBeat: 0,
     inputLevel: 0,
+    masterOutputLevel: 0,
     inputDeviceId: null,
     inputChannelIndex: 0,
     inputGain: 100,
@@ -458,13 +464,8 @@ export function createAudioEngine() {
       preMasterGainNode.gain.value = 1;
       compensationDelayNode = ctx.createDelay(0.05);
       compensationDelayNode.delayTime.value = COMPENSATION_DELAY_S;
-      if (!masterGainNode) {
-        masterGainNode = ctx.createGain();
-        masterGainNode.connect(ctx.destination);
-        applyMasterGain();
-      }
       preMasterGainNode.connect(compensationDelayNode);
-      compensationDelayNode.connect(masterGainNode!);
+      compensationDelayNode.connect(getMasterNode(ctx));
     }
     return preMasterGainNode;
   }
@@ -472,7 +473,11 @@ export function createAudioEngine() {
   function getMasterNode(ctx: AudioContext): GainNode {
     if (!masterGainNode) {
       masterGainNode = ctx.createGain();
-      masterGainNode.connect(ctx.destination);
+      /* Meter tap: master gain -> analyser -> destination. AnalyserNode passes audio through unchanged. */
+      masterAnalyser = ctx.createAnalyser();
+      masterAnalyser.fftSize = 2048;
+      masterGainNode.connect(masterAnalyser);
+      masterAnalyser.connect(ctx.destination);
       applyMasterGain();
     }
     return masterGainNode;
@@ -667,6 +672,11 @@ export function createAudioEngine() {
       inputLevelListeners.forEach((cb) => cb(state.inputLevel));
       return;
     }
+    if (keys.length === 1 && keys[0] === 'masterOutputLevel') {
+      state = { ...state, masterOutputLevel: (update as { masterOutputLevel: number }).masterOutputLevel };
+      masterLevelListeners.forEach((cb) => cb(state.masterOutputLevel));
+      return;
+    }
     state = { ...state, ...update };
     notify();
   }
@@ -839,20 +849,46 @@ export function createAudioEngine() {
   }
 
   function updateInputLevel() {
+    /* Dedup: cancel any pending frame so a second start (sustained stream vs recording) never spawns parallel loops sharing animFrameId. */
+    if (animFrameId) {
+      cancelAnimationFrame(animFrameId);
+      animFrameId = 0;
+    }
     if (!analyser) return;
     const data = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteTimeDomainData(data);
-    let max = 0;
-    for (let i = 0; i < data.length; i++) {
-      const val = Math.abs(data[i] - 128) / 128;
-      if (val > max) max = val;
-    }
+    const max = peakFromByteTimeDomain(data);
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     if (now - lastInputLevelUpdateMs >= INPUT_LEVEL_THROTTLE_MS) {
       lastInputLevelUpdateMs = now;
       setState({ inputLevel: max });
     }
     animFrameId = requestAnimationFrame(updateInputLevel);
+  }
+
+  /** Sample the master bus peak into state.masterOutputLevel (throttled like the input meter). Called from the transport rAF loops so the footer master meter reflects the real playback/monitoring signal. */
+  function sampleMasterOutputLevel() {
+    if (!masterAnalyser) return;
+    const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    if (now - lastMasterLevelUpdateMs < INPUT_LEVEL_THROTTLE_MS) return;
+    lastMasterLevelUpdateMs = now;
+    const data = new Uint8Array(masterAnalyser.frequencyBinCount);
+    masterAnalyser.getByteTimeDomainData(data);
+    setState({ masterOutputLevel: peakFromByteTimeDomain(data) });
+  }
+
+  /** iOS Safari can refuse AudioContext.resume() outside a user gesture (e.g. after awaiting getUserMedia). Retry on the user's next tap so recording/metering actually gets signal. */
+  function resumeContextOnNextGesture(ctx: AudioContext) {
+    if (typeof document === 'undefined') return;
+    const tryResume = () => {
+      if (ctx.state !== 'running') ctx.resume().catch(() => {});
+      if (ctx.state === 'running') {
+        document.removeEventListener('pointerdown', tryResume);
+        document.removeEventListener('touchend', tryResume);
+      }
+    };
+    document.addEventListener('pointerdown', tryResume);
+    document.addEventListener('touchend', tryResume);
   }
 
   /** Fetch mic stream (for pre-fetch during count-in so recording starts instantly). */
@@ -872,8 +908,10 @@ export function createAudioEngine() {
   }
 
   /** Wire stream into graph and start recorder; call after getStreamForRecording(). Returns ctx.currentTime when recorder started. */
-  function startRecordingWithStream(streamForSource: MediaStream, fullStream: MediaStream): number {
-    const ctx = getAudioContext();
+  async function startRecordingWithStream(streamForSource: MediaStream, fullStream: MediaStream): Promise<number> {
+    /* Ensure the context is actually running before wiring the graph: on iOS Safari a suspended context means a silent analyser (dead input meter) and a silent recording. */
+    const ctx = await ensureContextRunning();
+    if (ctx.state !== 'running') resumeContextOnNextGesture(ctx);
     mediaStream = fullStream;
     const source = ctx.createMediaStreamSource(streamForSource);
     analyser = ctx.createAnalyser();
@@ -1223,7 +1261,7 @@ export function createAudioEngine() {
       regionFadeGainNodes.clear();
       stopRecording();
       isPlaying = false;
-      setState({ isPlaying: false, isRecording: false });
+      setState({ isPlaying: false, isRecording: false, masterOutputLevel: 0 });
       return;
     }
     if (state.isCountingIn) {
@@ -1244,7 +1282,7 @@ export function createAudioEngine() {
       let recordingStartTime: number;
       try {
         if (stream) {
-          recordingStartTime = startRecordingWithStream(stream.streamForSource, stream.fullStream);
+          recordingStartTime = await startRecordingWithStream(stream.streamForSource, stream.fullStream);
         } else {
           recordingStartTime = await startRecording();
         }
@@ -1265,6 +1303,7 @@ export function createAudioEngine() {
           if (!prev.isRecording && !prev.isPlaying) return prev;
           return { ...prev, currentTime };
         });
+        sampleMasterOutputLevel();
         timeUpdateRafId = requestAnimationFrame(updateTime);
       };
       timeUpdateRafId = requestAnimationFrame(updateTime);
@@ -1290,10 +1329,11 @@ export function createAudioEngine() {
       regionFadeGainNodes.clear();
       stopMetronome();
       isPlaying = false;
-      setState({ isPlaying: false });
+      setState({ isPlaying: false, masterOutputLevel: 0 });
       return;
     }
     const ctx = getAudioContext();
+    if (ctx.state !== 'running') resumeContextOnNextGesture(ctx);
     const dur = state.duration;
     const offset = state.startPosition;
     playbackStart = ctx.currentTime;
@@ -1316,10 +1356,11 @@ export function createAudioEngine() {
         regionFadeGainNodes.clear();
         stopMetronome();
         isPlaying = false;
-        setState({ isPlaying: false, currentTime: 0, startPosition: 0 });
+        setState({ isPlaying: false, currentTime: 0, startPosition: 0, masterOutputLevel: 0 });
         return;
       }
       setState({ currentTime: elapsed });
+      sampleMasterOutputLevel();
       timeUpdateRafId = requestAnimationFrame(updateTime);
     };
     timeUpdateRafId = requestAnimationFrame(updateTime);
@@ -1351,6 +1392,7 @@ export function createAudioEngine() {
       currentCountInBeat: 0,
       currentTime: 0,
       startPosition: 0,
+      masterOutputLevel: 0,
     });
   }
 
@@ -1375,6 +1417,7 @@ export function createAudioEngine() {
       isPlaying: false,
       currentTime: now,
       startPosition: now,
+      masterOutputLevel: 0,
     });
   }
 
@@ -1778,6 +1821,14 @@ export function createAudioEngine() {
     return () => {
       const i = inputLevelListeners.indexOf(listener);
       if (i >= 0) inputLevelListeners.splice(i, 1);
+    };
+  }
+
+  function subscribeMasterLevel(listener: (level: number) => void): () => void {
+    masterLevelListeners.push(listener);
+    return () => {
+      const i = masterLevelListeners.indexOf(listener);
+      if (i >= 0) masterLevelListeners.splice(i, 1);
     };
   }
 
@@ -2344,6 +2395,7 @@ export function createAudioEngine() {
     subscribe,
     setNoArmedTrackListener,
     subscribeInputLevel,
+    subscribeMasterLevel,
     subscribeMetronomeTick,
     record,
     play,

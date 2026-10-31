@@ -72,6 +72,8 @@ export interface AudioEngineState {
   isCountingIn: boolean;
   currentCountInBeat: number;
   inputLevel: number;
+  /** Measured master bus output peak 0-1 (drives the footer master meter). */
+  masterOutputLevel: number;
   /** Selected audio input device ID (null = default). */
   inputDeviceId: string | null;
   /** Index into device's audio tracks (channel) when device exposes multiple inputs. */

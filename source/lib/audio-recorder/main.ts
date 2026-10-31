@@ -4,6 +4,7 @@
  */
 
 import { createAudioEngine, extractWaveformRange, getPyramidPeaks } from './audioEngine';
+import { levelToDbText } from './meterUtils';
 import {
   barBeatToSeconds,
   getGridLines,
@@ -2384,10 +2385,10 @@ export function mountAudioRecorder(
     }
     const masterMeter = container.querySelector('#ar-master-meter') as HTMLElement | null;
     if (masterMeter) {
-      updateLedGridMeter(masterMeter, state.isRecording ? state.inputLevel * 0.8 : 0, LEVEL_METER_SEGMENTS);
+      updateLedGridMeter(masterMeter, state.masterOutputLevel, LEVEL_METER_SEGMENTS);
     }
     const masterDb = container.querySelector('#ar-master-db');
-    if (masterDb) masterDb.textContent = state.isRecording ? `${Math.round(state.inputLevel * -60)}dB` : '-inf';
+    if (masterDb) masterDb.textContent = levelToDbText(state.masterOutputLevel);
     const micIcon = container.querySelector('#ar-mic-icon');
     if (micIcon) micIcon.classList.toggle('text-destructive', state.isRecording);
 
@@ -3155,15 +3156,17 @@ export function mountAudioRecorder(
 
   cleanupFns.push(unsub);
   const unsubInputLevel = engine.subscribeInputLevel((level) => {
-    const isRecording = engine.getState().isRecording;
     const inputMeter = container.querySelector('#ar-input-meter') as HTMLElement | null;
     if (inputMeter) updateLedGridMeter(inputMeter, level, LEVEL_METER_SEGMENTS);
-    const masterMeter = container.querySelector('#ar-master-meter') as HTMLElement | null;
-    if (masterMeter) updateLedGridMeter(masterMeter, isRecording ? level * 0.8 : 0, LEVEL_METER_SEGMENTS);
-    const masterDb = container.querySelector('#ar-master-db');
-    if (masterDb) masterDb.textContent = isRecording ? `${Math.round(level * -60)}dB` : '-inf';
   });
   cleanupFns.push(unsubInputLevel);
+  const unsubMasterLevel = engine.subscribeMasterLevel((level) => {
+    const masterMeter = container.querySelector('#ar-master-meter') as HTMLElement | null;
+    if (masterMeter) updateLedGridMeter(masterMeter, level, LEVEL_METER_SEGMENTS);
+    const masterDb = container.querySelector('#ar-master-db');
+    if (masterDb) masterDb.textContent = levelToDbText(level);
+  });
+  cleanupFns.push(unsubMasterLevel);
   buildTrackStrips();
   requestAnimationFrame(() => refreshPanelWidth());
 
