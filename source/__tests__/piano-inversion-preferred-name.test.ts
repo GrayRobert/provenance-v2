@@ -7,6 +7,7 @@
  */
 import { describe, it, expect } from 'vitest';
 import {
+  analyzeChordTones,
   detectChordName,
   notesMatchChordSymbol,
   resolveChordNameWithPreference,
@@ -66,5 +67,31 @@ describe('resolveChordNameWithPreference', () => {
     expect(resolveChordNameWithPreference('Bm#5', ['B3', 'D4', 'G4'], null)).toBe('Bm#5');
     expect(resolveChordNameWithPreference('Bm#5', ['B3', 'D4', 'G4'], undefined)).toBe('Bm#5');
     expect(resolveChordNameWithPreference('', [], 'G')).toBe('');
+  });
+});
+
+describe('analyzeChordTones with a preferred symbol', () => {
+  it('labels tones relative to the intended root for an inversion', () => {
+    const a = analyzeChordTones(['B3', 'D4', 'G4'], 'G');
+    expect(a).not.toBeNull();
+    expect(a!.root).toBe('G');
+    expect(a!.chordName).toBe('G');
+    const byNote = Object.fromEntries(a!.tones.map((t) => [t.note, t.degree]));
+    expect(byNote['G']).toBe('R');
+    expect(byNote['B']).toBe('3');
+    expect(byNote['D']).toBe('5');
+  });
+
+  it('keeps legacy detector-root behavior without a preferred symbol', () => {
+    const a = analyzeChordTones(['B3', 'D4', 'G4']);
+    expect(a).not.toBeNull();
+    expect(a!.root).toBe('B');
+  });
+
+  it('falls back to detection when the preferred symbol does not match the notes', () => {
+    const a = analyzeChordTones(['B3', 'D4', 'G4'], 'C');
+    expect(a).not.toBeNull();
+    expect(a!.root).toBe('B');
+    expect(a!.chordName).toBe('Bm#5');
   });
 });

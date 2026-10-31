@@ -170,7 +170,10 @@ const INTERVAL_SHORT: Record<string, string> = {
   '7M': '7',
 };
 
-export function analyzeChordTones(noteNames: string[]): {
+export function analyzeChordTones(
+  noteNames: string[],
+  preferredSymbol?: string | null
+): {
   root: string;
   tones: ChordToneInfo[];
   chordName: string;
@@ -183,14 +186,23 @@ export function analyzeChordTones(noteNames: string[]): {
 
   if (pitchClasses.length < 2) return null;
 
-  const detected = Chord.detect(pitchClasses);
-  if (detected.length === 0) return null;
-
-  const chordName = detected[0];
-  const chord = Chord.get(chordName);
-  if (!chord.tonic) return null;
-
-  const root = chord.tonic;
+  // When the notes are exactly the preferred chord's pitch classes (any
+  // inversion), label tones relative to that chord's root so the breakdown
+  // matches the displayed symbol (e.g. G 1st inversion: B is the 3rd, not
+  // the root). Otherwise fall back to detection.
+  let root: string | null = null;
+  let chordName = '';
+  if (preferredSymbol && notesMatchChordSymbol(noteNames, preferredSymbol)) {
+    root = Chord.get(preferredSymbol).tonic ?? null;
+    if (root) chordName = preferredSymbol;
+  }
+  if (!root) {
+    const detected = Chord.detect(pitchClasses);
+    if (detected.length === 0) return null;
+    chordName = detected[0];
+    root = Chord.get(chordName).tonic ?? null;
+  }
+  if (!root) return null;
 
   const tones: ChordToneInfo[] = pitchClasses.map((pc) => {
     const dist = Interval.distance(root, pc);

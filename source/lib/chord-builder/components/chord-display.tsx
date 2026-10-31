@@ -24,7 +24,7 @@ export default function ChordDisplay({ chordName, notes }: ChordDisplayProps) {
     ...new Set(notes.map((n) => Note.pitchClass(n)).filter(Boolean)),
   ];
 
-  const analysis = analyzeChordTones(notes);
+  const analysis = analyzeChordTones(notes, chordName);
   const hasNotes = notes.length > 0;
 
   return (
