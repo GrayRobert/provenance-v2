@@ -1,28 +1,30 @@
-# Provenance v2 - local-first slice 1
+# Provenance v2
 
-A self-contained, local-first build of the Provenance song editor. No accounts, no server, no payments: songs live in your browser's localStorage and can be exported/restored as JSON backup files.
+Local-first songwriting app, built as a static Next.js site. Songs, history and recordings live in the browser: song text and event history in localStorage (`prov2.*`), audio in IndexedDB (`prov2-audio`). There is no hosted account or sync; backups are JSON files the user exports and restores.
 
-## What works in this slice
-- Create songs (blank or from a structure template), edit title/lyrics/chords, section structure
-- Song list with per-song persistence across reloads (localStorage keys `prov2.*`)
-- Record audio ideas against a whole song or a single section (mic via MediaRecorder - WebM on desktop, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), name each take when saving, play them back, rename, archive/unarchive, and download them from Artifacts
-- Audio persists across reloads in IndexedDB (`prov2-audio`); song text stays in localStorage
-- Chord Explorer with instrument playback (piano, upright, Rhodes, acoustic guitar samples bundled)
-- Export a full backup (all songs + audio, base64-embedded) as a JSON file; restore it later (validated, malformed files are rejected safely; v1 backups without audio still restore)
+## What works
 
-## Known limitations of this slice (later milestones)
-- Guitar chord diagrams are not bundled yet; ukulele diagrams work
-- No accounts/sharing: everything stays on this device and browser
-- TrackLab multitrack projects, mixdowns, offline sync and Drive integration are later milestones
-- Section recordings keep one primary per section; earlier takes are archived (recoverable under Artifacts > show archived). Takes get automatic versioned names (Verse 1 (V2)) unless you name them yourself
-- Large recordings inflate backup files (audio is base64-embedded, ~33% overhead)
+- Song editor: title/lyrics/chords, section structure, templates; per-song persistence across reloads
+- Recording: takes against a whole song or a single section (MediaRecorder; format negotiated per browser - WebM where supported, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), custom take names, playback, rename, archive/unarchive, download from Artifacts
+- Track Lab: multitrack recorder with per-track arming, count-in, dB-scaled live input and master meters, latency compensation, and mixdown
+- Timeline: per-song event history with hash-chain integrity check, ownership split, and certificate PDF export
+- Songwriter Profile: songwriter name, optional legal name and contact/website, per-field switches for what appears on exports; each export embeds a snapshot of the profile at export time; profile is included in backups
+- Chord Explorer and Chord Finder with instrument playback (piano, upright, Rhodes, acoustic guitar samples); guitar and ukulele chord diagrams; metronome
+- Exports: text, ChordPro, HTML, print view; full JSON backup (audio base64-embedded) with restore validation; v1 backups (no audio) still restore
 
-## Build it yourself
-Requires Node 20+.
+## Notes and limits
+
+- Section recordings keep one primary take per section; earlier takes are archived (Artifacts > show archived). Takes get automatic versioned names unless named manually
+- Large recordings inflate backup files (base64, ~33% overhead)
+- Timestamps are device-provided; the history is a local record, not independent proof of authorship or time
+
+## Build
+
+Requires Node 20.9+ (Next.js 16).
 
 ```
 npm install
 npm run build
 ```
 
-The static site is emitted to `out/` with basePath `/provenance-v2` (see `next.config.ts`). To serve under a different path, change `basePath` and rebuild.
+Static output goes to `out/` with basePath `/provenance-v2` (see `next.config.ts`). Tests: `npx vitest run`.
