@@ -10,7 +10,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Download and unpack preview site
         run: |
-          curl -fL -o preview-site.zip "https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/4-preview-site.zip"
+          curl -fL -o preview-site.zip "https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/5-preview-site.zip"
           mkdir -p preview
           unzip -o preview-site.zip -d preview -x '.github/*'
           rm -f preview-site.zip
@@ -19,5 +19,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Deploy preview build under /preview" || echo "nothing to commit"
+          git commit -m "Update preview build (clientGeneratedId fix)" || echo "nothing to commit"
           git push
