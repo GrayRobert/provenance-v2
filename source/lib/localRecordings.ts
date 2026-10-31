@@ -127,6 +127,8 @@ export interface SaveRecordingOptions {
   sectionId?: string | null;
   trackIndex?: number;
   label?: string;
+  /** True when the user typed this name themselves; stored as-is, no version suffix. */
+  labelIsCustom?: boolean;
   durationSeconds?: number;
 }
 
@@ -156,11 +158,12 @@ export async function saveLocalRecording(
   const existing = (await allStored()).filter((r) => r.songId === songId);
 
   let label = options.label ?? null;
+  const labelIsCustom = !!options.labelIsCustom && !!label?.trim();
   if (sectionId) {
     const sectionRecs = existing.filter((r) => r.sectionId === sectionId);
     const version = sectionRecs.length + 1;
     const base = label?.trim() || 'Section recording';
-    label = `${base} v${version}`;
+    label = labelIsCustom ? label!.trim() : `${base} v${version}`;
     // Archive the previous primary(s) for this section.
     const db = await openDb();
     try {
@@ -177,6 +180,9 @@ export async function saveLocalRecording(
     }
   }
 
+  if (!sectionId && label) {
+    label = label.trim() || null;
+  }
   const recordingId = crypto.randomUUID();
   const trackIndex =
     options.trackIndex ?? (existing.length ? Math.max(...existing.map((r) => r.trackIndex)) + 1 : 0);
@@ -190,6 +196,7 @@ export async function saveLocalRecording(
     sizeBytes: blob.size,
     trackIndex,
     label,
+    customLabel: labelIsCustom || undefined,
     durationSeconds: options.durationSeconds ?? null,
     updatedAt: now,
     archivedAt: null,
@@ -218,6 +225,30 @@ export async function setLocalRecordingArchived(recordingId: string, archived: b
       tx.objectStore(STORE).put({
         ...rec,
         archivedAt: archived ? new Date().toISOString() : null,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+/** Rename a take. A user-chosen name is stored as-is and marked custom so it
+ * displays verbatim (no "(V1)" version formatting). */
+export async function renameLocalRecording(recordingId: string, label: string): Promise<void> {
+  const trimmed = label.trim();
+  if (!trimmed) throw new Error('Name cannot be empty.');
+  const rec = await getStored(recordingId);
+  if (!rec) throw new Error('Recording not found.');
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORE, 'readwrite');
+    await requestToPromise(
+      tx.objectStore(STORE).put({
+        ...rec,
+        label: trimmed,
+        customLabel: true,
         updatedAt: new Date().toISOString(),
       })
     );

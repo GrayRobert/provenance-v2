@@ -73,6 +73,7 @@ import {
   deleteLocalRecordingsForSong,
   getCachedRecordingUrl,
   listLocalRecordings,
+  renameLocalRecording,
   saveLocalRecording,
   setLocalRecordingArchived,
 } from './localRecordings';
@@ -495,6 +496,9 @@ export const songApi = {
   unarchiveRecording: async (_songId: string, recordingId: string): Promise<void> => {
     await setLocalRecordingArchived(recordingId, false);
   },
+  renameRecording: async (_songId: string, recordingId: string, label: string): Promise<void> => {
+    await renameLocalRecording(recordingId, label);
+  },
 
   /* individual song mutations */
   createSong: async (): Promise<{ songId: string }> => ({ songId: createSongRecord().songId }),
@@ -561,7 +565,13 @@ export const songApi = {
   uploadRecording: async (
     songId: string,
     blob: Blob,
-    options?: { sectionId?: string | null; trackIndex?: number; label?: string; durationSeconds?: number }
+    options?: {
+      sectionId?: string | null;
+      trackIndex?: number;
+      label?: string;
+      labelIsCustom?: boolean;
+      durationSeconds?: number;
+    }
   ): Promise<{ recordingId: string }> => {
     requireSong(songId);
     const rec = await saveLocalRecording(songId, blob, options ?? {});

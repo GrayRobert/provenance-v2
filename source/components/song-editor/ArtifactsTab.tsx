@@ -14,6 +14,8 @@ import {
   Headphones,
   FolderOpen,
   Download,
+  Check,
+  X,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { songApi, profileApi } from '@/lib/api';
@@ -34,10 +36,16 @@ export interface ArtifactsTabProps {
   onOpenTrackLabProject?: (project: TrackLabProject) => void;
 }
 
-/** Format recording label: strip section type prefix, show "Chorus 1 (V1)" for sections; demos as-is. */
-function formatRecordingLabelForDisplay(rec: { label?: string | null; sectionId?: string | null }): string {
+/** Format recording label: user-named takes show as-is; otherwise strip section type prefix,
+ * show "Chorus 1 (V1)" for sections; demos as-is. */
+function formatRecordingLabelForDisplay(rec: {
+  label?: string | null;
+  sectionId?: string | null;
+  customLabel?: boolean;
+}): string {
   const raw = rec.label?.trim() || '';
   if (!raw) return '';
+  if (rec.customLabel) return raw;
   const isSection = rec.sectionId != null && rec.sectionId !== '';
   if (!isSection) return raw;
   const label = raw.replace(SECTION_TYPE_PREFIX_REGEX, '').trim() || raw;
@@ -353,6 +361,9 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
   const [viewingScanId, setViewingScanId] = useState<string | null>(null);
   const [viewingVideoId, setViewingVideoId] = useState<string | null>(null);
   const [playingRecordingId, setPlayingRecordingId] = useState<string | null>(null);
+  const [renamingRecordingId, setRenamingRecordingId] = useState<string | null>(null);
+  const [renameValue, setRenameValue] = useState('');
+  const [renameSaving, setRenameSaving] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [storageUsage, setStorageUsage] = useState<{
     usedBytes: number;
@@ -401,6 +412,30 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
       downloadTextFile(noteDownloadFilename(note), md, 'text/markdown;charset=utf-8');
     } catch {
       toast.error('Could not download note');
+    }
+  };
+
+  const startRenameRecording = (rec: Recording) => {
+    setRenamingRecordingId(rec.recordingId);
+    setRenameValue(rec.label?.trim() || '');
+  };
+
+  const saveRenameRecording = async () => {
+    if (!renamingRecordingId) return;
+    const value = renameValue.trim();
+    if (!value) {
+      toast.error('Name cannot be empty');
+      return;
+    }
+    setRenameSaving(true);
+    try {
+      await songApi.renameRecording(songId, renamingRecordingId, value);
+      setRenamingRecordingId(null);
+      load();
+    } catch {
+      toast.error('Could not rename recording');
+    } finally {
+      setRenameSaving(false);
     }
   };
 
@@ -517,18 +552,56 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
                 className="flex items-center gap-3 rounded-lg border border-border bg-surface px-3 py-2.5"
               >
                 <Mic className="size-4 shrink-0 text-accent" aria-hidden />
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium text-foreground truncate">
-                    {formatRecordingLabelForDisplay(rec) || `Track ${rec.trackIndex + 1}`}
-                  </p>
-                  <p className="text-xs text-muted">
-                    {rec.sectionId ? 'Section' : 'Demo'}
-                    {rec.updatedAt ? ` · ${formatDate(rec.updatedAt)}` : ''}
-                    {rec.durationSeconds != null && Number.isFinite(rec.durationSeconds) && (
-                      <> · {Math.round(rec.durationSeconds)}s</>
-                    )}
-                  </p>
-                </div>
+                {renamingRecordingId === rec.recordingId ? (
+                  <form
+                    className="flex min-w-0 flex-1 items-center gap-1"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      saveRenameRecording();
+                    }}
+                  >
+                    <input
+                      autoFocus
+                      type="text"
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      maxLength={80}
+                      aria-label="Recording name"
+                      className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                    />
+                    <button
+                      type="submit"
+                      disabled={renameSaving}
+                      className="shrink-0 rounded p-1.5 text-accent hover:bg-accent/10 transition-colors disabled:opacity-60"
+                      title="Save name"
+                      aria-label="Save name"
+                    >
+                      <Check className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setRenamingRecordingId(null)}
+                      className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-border transition-colors"
+                      title="Cancel"
+                      aria-label="Cancel rename"
+                    >
+                      <X className="size-4" />
+                    </button>
+                  </form>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-foreground truncate">
+                      {formatRecordingLabelForDisplay(rec) || `Track ${rec.trackIndex + 1}`}
+                    </p>
+                    <p className="text-xs text-muted">
+                      {rec.sectionId ? 'Section' : 'Demo'}
+                      {rec.updatedAt ? ` · ${formatDate(rec.updatedAt)}` : ''}
+                      {rec.durationSeconds != null && Number.isFinite(rec.durationSeconds) && (
+                        <> · {Math.round(rec.durationSeconds)}s</>
+                      )}
+                    </p>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => {
@@ -556,6 +629,15 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
                 </button>
                 <button
                   type="button"
+                  onClick={() => startRenameRecording(rec)}
+                  className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-border transition-colors"
+                  title="Rename recording"
+                  aria-label="Rename recording"
+                >
+                  <Pencil className="size-4" />
+                </button>
+                <button
+                  type="button"
                   onClick={() =>
                     songApi.archiveRecording(songId, rec.recordingId).then(() => load())
                   }
@@ -576,18 +658,56 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
                     className="flex items-center gap-3 rounded-lg border border-border bg-surface/60 px-3 py-2.5 opacity-75"
                   >
                     <Trash2 className="size-4 shrink-0 text-muted" aria-hidden />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-foreground truncate">
-                        {formatRecordingLabelForDisplay(rec) || `Track ${rec.trackIndex + 1}`}
-                      </p>
-                      <p className="text-xs text-muted">
-                        {rec.sectionId ? 'Section' : 'Demo'}
-                        {rec.updatedAt ? ` · ${formatDate(rec.updatedAt)}` : ''}
-                        {rec.durationSeconds != null && Number.isFinite(rec.durationSeconds) && (
-                          <> · {Math.round(rec.durationSeconds)}s</>
-                        )}
-                      </p>
-                    </div>
+                    {renamingRecordingId === rec.recordingId ? (
+                      <form
+                        className="flex min-w-0 flex-1 items-center gap-1"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          saveRenameRecording();
+                        }}
+                      >
+                        <input
+                          autoFocus
+                          type="text"
+                          value={renameValue}
+                          onChange={(e) => setRenameValue(e.target.value)}
+                          maxLength={80}
+                          aria-label="Recording name"
+                          className="min-w-0 flex-1 rounded border border-border bg-background px-2 py-1 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+                        />
+                        <button
+                          type="submit"
+                          disabled={renameSaving}
+                          className="shrink-0 rounded p-1.5 text-accent hover:bg-accent/10 transition-colors disabled:opacity-60"
+                          title="Save name"
+                          aria-label="Save name"
+                        >
+                          <Check className="size-4" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setRenamingRecordingId(null)}
+                          className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-border transition-colors"
+                          title="Cancel"
+                          aria-label="Cancel rename"
+                        >
+                          <X className="size-4" />
+                        </button>
+                      </form>
+                    ) : (
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium text-foreground truncate">
+                          {formatRecordingLabelForDisplay(rec) || `Track ${rec.trackIndex + 1}`}
+                        </p>
+                        <p className="text-xs text-muted">
+                          {rec.sectionId ? 'Section' : 'Demo'}
+                          {rec.updatedAt ? ` · ${formatDate(rec.updatedAt)}` : ''}
+                          {rec.durationSeconds != null && Number.isFinite(rec.durationSeconds) && (
+                            <> · {Math.round(rec.durationSeconds)}s</>
+                          )}
+                        </p>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => downloadRecordingFile(rec)}
@@ -596,6 +716,15 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
                       aria-label="Download audio"
                     >
                       <Download className="size-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => startRenameRecording(rec)}
+                      className="shrink-0 rounded p-1.5 text-muted hover:text-foreground hover:bg-border transition-colors"
+                      title="Rename recording"
+                      aria-label="Rename recording"
+                    >
+                      <Pencil className="size-4" />
                     </button>
                     <button
                       type="button"

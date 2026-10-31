@@ -5,7 +5,7 @@ A self-contained, local-first build of the Provenance song editor. No accounts, 
 ## What works in this slice
 - Create songs (blank or from a structure template), edit title/lyrics/chords, section structure
 - Song list with per-song persistence across reloads (localStorage keys `prov2.*`)
-- Record audio ideas against a whole song or a single section (mic via MediaRecorder - WebM on desktop, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), play them back, archive/unarchive, download them
+- Record audio ideas against a whole song or a single section (mic via MediaRecorder - WebM on desktop, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), name each take when saving, play them back, rename, archive/unarchive, and download them from Artifacts
 - Audio persists across reloads in IndexedDB (`prov2-audio`); song text stays in localStorage
 - Chord Explorer with instrument playback (piano, upright, Rhodes, acoustic guitar samples bundled)
 - Export a full backup (all songs + audio, base64-embedded) as a JSON file; restore it later (validated, malformed files are rejected safely; v1 backups without audio still restore)
@@ -14,7 +14,7 @@ A self-contained, local-first build of the Provenance song editor. No accounts, 
 - Guitar chord diagrams are not bundled yet; ukulele diagrams work
 - No accounts/sharing: everything stays on this device and browser
 - TrackLab multitrack projects, mixdowns, offline sync and Drive integration are later milestones
-- Section recordings keep one primary per section; earlier takes are archived (recoverable under Artifacts > show archived)
+- Section recordings keep one primary per section; earlier takes are archived (recoverable under Artifacts > show archived). Takes get automatic versioned names (Verse 1 (V2)) unless you name them yourself
 - Large recordings inflate backup files (audio is base64-embedded, ~33% overhead)
 
 ## Build it yourself

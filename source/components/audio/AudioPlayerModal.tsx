@@ -23,11 +23,14 @@ function formatCountdown(seconds: number): string {
 }
 
 /** Format track label: section = "Chorus 1 (V1)" (section name + version, no section type prefix); demos = label as-is. */
-function formatTrackLabelForDisplay(track: { label?: string | null; sectionId?: string | null } | null): string {
+function formatTrackLabelForDisplay(
+  track: { label?: string | null; sectionId?: string | null; customLabel?: boolean } | null
+): string {
   if (!track?.label?.trim()) return '—';
   let label = track.label.trim();
   const isSection = track.sectionId != null && track.sectionId !== '';
   if (!isSection) return label;
+  if (track.customLabel) return label;
   label = label.replace(SECTION_TYPE_PREFIX_REGEX, '').trim() || label;
   const match = label.match(/^(.+?)\s+v(\d+)$/i);
   if (match) {

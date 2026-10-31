@@ -71,6 +71,7 @@ export function RecordAudioDrawer({
   const [micError, setMicError] = useState<string | null>(null);
   const [recording, setRecording] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [takeName, setTakeName] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const stopMic = useCallback(() => {
@@ -93,6 +94,7 @@ export function RecordAudioDrawer({
   useEffect(() => {
     if (!open || !songId) return;
     setMicError(null);
+    setTakeName(recordingLabel ?? '');
     let cancelled = false;
     const startMic = async () => {
       try {
@@ -114,7 +116,7 @@ export function RecordAudioDrawer({
       cancelled = true;
       stopMic();
     };
-  }, [open, songId, stopMic]);
+  }, [open, songId, recordingLabel, stopMic]);
 
   const getNextTrackIndex = useCallback(async (): Promise<number> => {
     const list = await songApi.getRecordings(songId);
@@ -124,6 +126,17 @@ export function RecordAudioDrawer({
   }, [songId]);
 
   const recordingStartRef = useRef<number>(0);
+
+  /** Name options for saving: a name the user edited themselves is stored
+   * as-is; the untouched default keeps the automatic version suffix. */
+  const takeNameOptions = useCallback((): { label?: string; labelIsCustom?: boolean } => {
+    const trimmed = takeName.trim();
+    const defaultLabel = (recordingLabel ?? '').trim();
+    if (trimmed && trimmed !== defaultLabel) {
+      return { label: trimmed, labelIsCustom: true };
+    }
+    return { label: defaultLabel || undefined };
+  }, [takeName, recordingLabel]);
 
   const startRecording = useCallback(() => {
     if (!streamRef.current || !songId) return;
@@ -159,7 +172,7 @@ export function RecordAudioDrawer({
           trackIndex,
           durationSeconds,
           sectionId: sectionId ?? undefined,
-          label: recordingLabel ?? undefined,
+          ...takeNameOptions(),
         });
         onSuccess();
         onOpenChange(false);
@@ -173,7 +186,7 @@ export function RecordAudioDrawer({
     recorder.start(1000);
     recorderRef.current = recorder;
     setRecording(true);
-  }, [songId, sectionId, recordingLabel, getNextTrackIndex, onSuccess, onOpenChange]);
+  }, [songId, sectionId, takeNameOptions, getNextTrackIndex, onSuccess, onOpenChange]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state === 'recording') {
@@ -234,7 +247,7 @@ export function RecordAudioDrawer({
           trackIndex,
           durationSeconds,
           sectionId: sectionId ?? undefined,
-          label: recordingLabel ?? undefined,
+          ...takeNameOptions(),
         });
         onSuccess();
         onOpenChange(false);
@@ -246,7 +259,7 @@ export function RecordAudioDrawer({
         e.target.value = '';
       }
     },
-    [songId, sectionId, recordingLabel, getNextTrackIndex, getAudioDuration, onSuccess, onOpenChange]
+    [songId, sectionId, takeNameOptions, getNextTrackIndex, getAudioDuration, onSuccess, onOpenChange]
   );
 
   return (
@@ -271,6 +284,20 @@ export function RecordAudioDrawer({
             </div>
           )}
           <div className="flex flex-col gap-2">
+            <div className="space-y-1">
+              <label htmlFor="take-name" className="text-xs font-medium text-muted-foreground">
+                Name this take
+              </label>
+              <input
+                id="take-name"
+                type="text"
+                value={takeName}
+                onChange={(e) => setTakeName(e.target.value)}
+                placeholder={sectionId ? 'e.g. Verse idea' : 'e.g. Demo idea'}
+                maxLength={80}
+                className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-accent"
+              />
+            </div>
             {micReady && (
               <>
                 {!recording ? (

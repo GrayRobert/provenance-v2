@@ -87,6 +87,8 @@ export interface Recording {
   sizeBytes: number;
   trackIndex: number;
   label: string | null;
+  /** True when the user named this take themselves; the label is shown as-is (no version formatting). */
+  customLabel?: boolean;
   durationSeconds: number | null;
   /** When the recording was last updated (artifact list). */
   updatedAt?: string;
