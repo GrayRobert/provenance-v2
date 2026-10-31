@@ -887,7 +887,7 @@ export function createAudioEngine() {
       if (e.data.size > 0) chunks.push(e.data);
     };
     rec.onstop = async () => {
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
       const arrayBuffer = await blob.arrayBuffer();
       try {
         let audioBuffer = await ctx.decodeAudioData(arrayBuffer);
@@ -1624,7 +1624,7 @@ export function createAudioEngine() {
           label: t.name || null,
           durationSeconds,
           blob: t.regions[0].recordedBlob,
-          mimeType: 'audio/webm',
+          mimeType: t.regions[0].recordedBlob.type || 'audio/webm',
         });
       } else {
         const buffer = await renderTrackToBuffer(t);
@@ -2033,7 +2033,7 @@ export function createAudioEngine() {
         rec.onerror = () => reject(new Error('MediaRecorder failed'));
         rec.stop();
       });
-      const blob = new Blob(chunks, { type: 'audio/webm' });
+      const blob = new Blob(chunks, { type: rec.mimeType || 'audio/webm' });
       const arrayBuffer = await blob.arrayBuffer();
       const audioBuffer = await captureCtx.decodeAudioData(arrayBuffer.slice(0));
       const ch = audioBuffer.getChannelData(0);
