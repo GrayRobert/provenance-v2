@@ -404,6 +404,24 @@ function _dbg(elapsedMs: number, phase: string, hypothesisId?: string) {
 }
 // #endregion
 
+let armNoticeTimer: ReturnType<typeof setTimeout> | null = null;
+let armNoticeEl: HTMLElement | null = null;
+
+function showArmTrackNotice(): void {
+  if (!armNoticeEl) {
+    armNoticeEl = document.createElement('div');
+    armNoticeEl.id = 'ar-arm-notice';
+    armNoticeEl.className = 'fixed left-1/2 bottom-28 z-[70] -translate-x-1/2 rounded border border-border bg-secondary px-3 py-2 text-xs text-foreground shadow-lg transition-opacity duration-300';
+    document.body.appendChild(armNoticeEl);
+  }
+  armNoticeEl.textContent = 'Arm a track to record first: tap the red dot on a track.';
+  armNoticeEl.style.opacity = '1';
+  if (armNoticeTimer) clearTimeout(armNoticeTimer);
+  armNoticeTimer = setTimeout(() => {
+    if (armNoticeEl) armNoticeEl.style.opacity = '0';
+  }, 3500);
+}
+
 export function mountAudioRecorder(
   container: HTMLElement,
   props: AudioRecorderProps
@@ -429,17 +447,17 @@ export function mountAudioRecorder(
     </div>
     <div class="flex items-center gap-2">
       <button type="button" id="ar-undo" class="ar-undo-redo-btn p-1 rounded disabled:pointer-events-none hover:opacity-90" title="Undo (Ctrl+Z)" aria-label="Undo">
-        <img id="ar-undo-icon" src="/icons/undo-inactive-light.svg" alt="" width="24" height="24" class="w-6 h-6" />
+        <svg id="ar-undo-icon" class="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11"/></svg>
       </button>
       <button type="button" id="ar-redo" class="ar-undo-redo-btn p-1 rounded disabled:pointer-events-none hover:opacity-90" title="Redo (Ctrl+Shift+Z)" aria-label="Redo">
-        <img id="ar-redo-icon" src="/icons/redo-inactive-light.svg" alt="" width="24" height="24" class="w-6 h-6" />
+        <svg id="ar-redo-icon" class="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H13"/></svg>
       </button>
       <button type="button" id="ar-save" class="flex items-center gap-1.5 text-xs text-foreground bg-secondary hover:bg-border px-2 py-1.5 sm:px-3 rounded transition-colors font-medium" title="Save" aria-label="Save">
-        <img src="/icons/save.svg" alt="" width="24" height="24" class="w-6 h-6 shrink-0" />
+        <svg class="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15.2 3a2 2 0 0 1 1.4.6l3.8 3.8a2 2 0 0 1 .6 1.4V19a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M17 21v-7a1 1 0 0 0-1-1H8a1 1 0 0 0-1 1v7"/><path d="M7 3v4a1 1 0 0 0 1 1h7"/></svg>
         <span class="hidden sm:inline">Save</span>
       </button>
       <button type="button" id="ar-mixdown" class="flex items-center gap-1.5 text-xs text-foreground bg-secondary hover:bg-border px-2 py-1.5 sm:px-3 rounded transition-colors font-medium" title="Mix down" aria-label="Mix down">
-        <img src="/icons/mix-down.svg" alt="" width="24" height="24" class="w-6 h-6 shrink-0" />
+        <svg class="w-6 h-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="2" x2="6" y1="14" y2="14"/><line x1="10" x2="14" y1="8" y2="8"/><line x1="18" x2="22" y1="16" y2="16"/></svg>
         <span id="ar-mixdown-label" class="hidden sm:inline">Mix down</span>
       </button>
       <button type="button" id="ar-close" class="p-1.5 rounded text-muted-foreground hover:text-foreground" title="Close" aria-label="Close">
@@ -2168,16 +2186,20 @@ export function mountAudioRecorder(
 
     const undoBtn = container.querySelector('#ar-undo') as HTMLButtonElement | null;
     const redoBtn = container.querySelector('#ar-redo') as HTMLButtonElement | null;
-    const undoIcon = container.querySelector('#ar-undo-icon') as HTMLImageElement | null;
-    const redoIcon = container.querySelector('#ar-redo-icon') as HTMLImageElement | null;
+    const undoIcon = container.querySelector('#ar-undo-icon');
+    const redoIcon = container.querySelector('#ar-redo-icon');
     const canUndo = 'canUndo' in state ? state.canUndo : false;
     const canRedo = 'canRedo' in state ? state.canRedo : false;
-    const theme = getPluginTheme();
-    const inactiveSuffix = theme === 'dark' ? 'dark' : 'light';
     if (undoBtn) undoBtn.disabled = !canUndo;
     if (redoBtn) redoBtn.disabled = !canRedo;
-    if (undoIcon) undoIcon.src = canUndo ? '/icons/undo-primary.svg' : `/icons/undo-inactive-${inactiveSuffix}.svg`;
-    if (redoIcon) redoIcon.src = canRedo ? '/icons/redo-primary.svg' : `/icons/redo-inactive-${inactiveSuffix}.svg`;
+    if (undoIcon) {
+      undoIcon.classList.toggle('text-primary', !!canUndo);
+      undoIcon.classList.toggle('text-muted-foreground', !canUndo);
+    }
+    if (redoIcon) {
+      redoIcon.classList.toggle('text-primary', !!canRedo);
+      redoIcon.classList.toggle('text-muted-foreground', !canRedo);
+    }
 
     const countInDots = container.querySelector('#ar-countin-dots') as HTMLElement;
     if (countInDots) {
@@ -2453,6 +2475,7 @@ export function mountAudioRecorder(
     container.addEventListener('click', handleTransportClick, true);
     cleanupFns.push(() => container.removeEventListener('click', handleTransportClick, true));
     container.querySelector('#ar-record')?.addEventListener('click', () => engine.record());
+    engine.setNoArmedTrackListener(() => showArmTrackNotice());
     const tempoInput = container.querySelector('#ar-tempo') as HTMLInputElement;
     tempoInput?.addEventListener('change', () => engine.setTempo(Number(tempoInput.value) || 120));
     const timeSigNumBtn = container.querySelector('#ar-time-sig-num') as HTMLElement;

@@ -234,6 +234,11 @@ export function createAudioEngine() {
   let audioContext: AudioContext | null = null;
   let metronomeContext: AudioContext | null = null;
   let mediaStream: MediaStream | null = null;
+  let noArmedTrackListener: (() => void) | null = null;
+
+  function setNoArmedTrackListener(cb: (() => void) | null): void {
+    noArmedTrackListener = cb;
+  }
   let analyser: AnalyserNode | null = null;
   let inputGainNode: GainNode | null = null;
   let sustainedInputSource: MediaStreamAudioSourceNode | null = null;
@@ -1225,6 +1230,10 @@ export function createAudioEngine() {
       if (countInInterval) clearInterval(countInInterval);
       countInInterval = null;
       setState({ isCountingIn: false, currentCountInBeat: 0 });
+      return;
+    }
+    if (!state.tracks.some((t) => t.armed)) {
+      if (noArmedTrackListener) noArmedTrackListener();
       return;
     }
     const doRecord = async (
@@ -2333,6 +2342,7 @@ export function createAudioEngine() {
   return {
     getState,
     subscribe,
+    setNoArmedTrackListener,
     subscribeInputLevel,
     subscribeMetronomeTick,
     record,
