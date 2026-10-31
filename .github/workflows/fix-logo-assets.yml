@@ -1,0 +1,54 @@
+name: Restore logo assets and fix basePath asset refs
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-logo:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download original logo assets from release
+        run: |
+          mkdir -p logo source/public/logo
+          curl -fsSL -o logo/8thnote_cropped.svg https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/1-12-8thnote_cropped.svg
+          curl -fsSL -o logo/8thnote_cropped.png https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/2-12-8thnote_cropped.png
+          cp logo/8thnote_cropped.svg source/public/logo/8thnote_cropped.svg
+          cp logo/8thnote_cropped.png source/public/logo/8thnote_cropped.png
+          wc -c logo/8thnote_cropped.svg logo/8thnote_cropped.png
+      - name: Prefix root-absolute asset paths with the Pages base path
+        run: |
+          python3 - <<'PYEOF'
+          import pathlib, re, sys
+          rx = re.compile(r'(["\'`}])/(logo/8thnote_cropped\.(?:svg|png)|audio/dattorroReverb\.js|chords/ukulele\.json)')
+          exts = {'.js', '.mjs', '.ts', '.tsx', '.html'}
+          def texts():
+              for p in pathlib.Path('.').rglob('*'):
+                  if '.git' in p.parts or not p.is_file() or p.suffix not in exts:
+                      continue
+                  yield p
+          changed = []
+          for p in texts():
+              t = p.read_text(encoding='utf-8', errors='ignore')
+              n = rx.sub(lambda m: m.group(1) + '/provenance-v2/' + m.group(2), t)
+              if n != t:
+                  p.write_text(n, encoding='utf-8')
+                  changed.append(str(p))
+          print('patched files:')
+          print('\n'.join(changed))
+          leftover = [str(p) for p in texts() if rx.search(p.read_text(encoding='utf-8', errors='ignore'))]
+          if leftover:
+              print('STILL UNPATCHED: ' + ', '.join(leftover))
+              sys.exit(1)
+          print('no unprefixed asset refs remain')
+          PYEOF
+      - name: Commit and push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Restore original logo and prefix root-absolute asset paths with basePath'
+          git push
