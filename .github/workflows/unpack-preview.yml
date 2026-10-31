@@ -1,0 +1,22 @@
+name: Unpack preview build
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Unpack preview site
+        run: |
+          mkdir -p preview
+          unzip -o preview-site.zip -d preview -x '.github/*'
+          rm -f preview-site.zip
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy preview build under /preview" || echo "nothing to commit"
+          git push
