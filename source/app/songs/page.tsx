@@ -329,7 +329,7 @@ export default function SongsPage() {
         onConfirm={handleDeleteSongConfirm}
         loading={deleting}
       />
-      <AppHeader profile={profile} user={user} logout={logout} />
+      <AppHeader profile={profile} user={user} logout={logout} onProfileSaved={setProfile} />
 
       <main className="px-4 sm:px-6 lg:px-8 py-6 pb-24">
         <Breadcrumbs

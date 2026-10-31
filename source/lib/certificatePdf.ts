@@ -8,6 +8,9 @@ export interface Split {
   share: number;
 }
 
+/** Author details supplied by the songwriter, frozen at export time (self-supplied, not verified). */
+export type { AuthorSnapshot } from './authorSnapshot';
+
 export interface CertificatePdfPayload {
   songTitle: string;
   certificateId: string;
@@ -38,6 +41,8 @@ export interface CertificatePdfPayload {
   logoUrl?: string;
   /** Full URL to verify this certificate (e.g. https://provenancemusic.com/authenticate/{id} in prod, http://localhost:3000/authenticate/{id} in dev); when set, shown as hyperlink in Verification section. */
   verifyUrl?: string;
+  /** Author details snapshot taken at export time; rendered under its own section when present. */
+  authorSnapshot?: import('./authorSnapshot').AuthorSnapshot;
   /** Top-level writing session data for the PDF (proves when the song was written). */
   writingSessions?: Array<{
     durationMinutes: number;

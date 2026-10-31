@@ -9,6 +9,7 @@ import { groupEventsIntoSessions } from '@/lib/sessionGrouping';
 import { getEventsSummary } from '@/lib/eventInterpreter';
 import { transformTimelineEvents } from '@/lib/timelineEventTransforms';
 import { exportAsText, getStoredSongRhythmForExport } from '@/lib/export';
+import { buildAuthorSnapshot } from '@/lib/authorSnapshot';
 import { analyzeEvidenceCoverage, getEvidenceSummary } from '@/lib/evidenceAnalysis';
 import {
   mockWorkMetadata,
@@ -396,8 +397,13 @@ function TimelinePageInner() {
                 }))
               : undefined,
           songAsText: songDetail
-            ? exportAsText(songDetail, getStoredSongRhythmForExport(songDetail.songId))
+            ? exportAsText(
+                songDetail,
+                getStoredSongRhythmForExport(songDetail.songId),
+                buildAuthorSnapshot(profile)
+              )
             : undefined,
+          authorSnapshot: buildAuthorSnapshot(profile) ?? undefined,
           snapshotHash: certSnapshot.snapshotHash,
           tsaProvider: certSnapshot.tsaProvider,
           tsaGenTime: certSnapshot.tsaGenTime,
@@ -408,7 +414,7 @@ function TimelinePageInner() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        <AppHeader profile={profile} user={user} logout={logout} />
+        <AppHeader profile={profile} user={user} logout={logout} onProfileSaved={setProfile} />
         <main className="px-4 py-6 pb-24 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl flex flex-col gap-8">
             <div className="animate-pulse space-y-6">
@@ -434,7 +440,7 @@ function TimelinePageInner() {
 
   return (
     <div className="min-h-screen bg-background">
-      <AppHeader profile={profile} user={user} logout={logout} />
+      <AppHeader profile={profile} user={user} logout={logout} onProfileSaved={setProfile} />
 
       <main className="px-4 py-6 pb-24 sm:px-6 lg:px-8">
         <div className="no-print mb-6">

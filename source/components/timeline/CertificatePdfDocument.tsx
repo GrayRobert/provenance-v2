@@ -495,6 +495,27 @@ export function CertificatePdfDocument({ payload }: { payload: CertificatePdfPay
           </View>
         </View>
 
+        {/* Author details supplied by the songwriter (snapshot at export time) */}
+        {payload.authorSnapshot ? (
+          <>
+            <Text style={styles.sectionTitle}>Author details supplied by the songwriter</Text>
+            <View style={styles.box}>
+              <Text style={[styles.bodyText, { marginBottom: 4, color: colors.muted }]}>
+                Self-supplied by the songwriter; not independently verified. Snapshot taken at export: {payload.authorSnapshot.snapshotAt}
+              </Text>
+              {payload.authorSnapshot.songwriterName ? (
+                <Text style={[styles.bodyText, { marginBottom: 2 }]}>Songwriter: {payload.authorSnapshot.songwriterName}</Text>
+              ) : null}
+              {payload.authorSnapshot.legalName ? (
+                <Text style={[styles.bodyText, { marginBottom: 2 }]}>Legal name: {payload.authorSnapshot.legalName}</Text>
+              ) : null}
+              {payload.authorSnapshot.contactOrWebsite ? (
+                <Text style={[styles.bodyText, { marginBottom: 2 }]}>Contact: {payload.authorSnapshot.contactOrWebsite}</Text>
+              ) : null}
+            </View>
+          </>
+        ) : null}
+
         {/* Ownership Splits */}
         <Text style={styles.sectionTitle}>Ownership Splits</Text>
         <View style={styles.box}>

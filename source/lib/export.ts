@@ -4,6 +4,11 @@ import { guitarTabStaffDisplayBlockLineCount } from '@/lib/guitar-tab-bar';
 import { instrumentalMeasureBlockLineCount } from '@/lib/instrumental-measure-row';
 import type { Instrument } from '@/lib/types';
 import { getVoicingsForChord } from '@/lib/chordVoicings';
+import {
+  authorSnapshotAsText,
+  AUTHOR_SUPPLIED_LABEL,
+  type AuthorSnapshot,
+} from '@/lib/authorSnapshot';
 
 /** Time signature + tempo appended after the chord chart block in text/HTML export. */
 export interface SongRhythmForExport {
@@ -69,7 +74,11 @@ export function getChordAbsolutePosition(chord: Chord, line: Line): number {
   return chord.charOffset;
 }
 
-export function exportAsText(song: SongDetail, rhythm?: SongRhythmForExport | null): string {
+export function exportAsText(
+  song: SongDetail,
+  rhythm?: SongRhythmForExport | null,
+  author?: AuthorSnapshot | null
+): string {
   let output = '';
 
   // Title
@@ -116,7 +125,11 @@ export function exportAsText(song: SongDetail, rhythm?: SongRhythmForExport | nu
     });
     output += '\n';
   });
-  
+
+  if (author) {
+    output += authorSnapshotAsText(author) + '\n';
+  }
+
   return output;
 }
 
@@ -190,7 +203,11 @@ export function exportChordProSectionLines(lines: Line[]): string {
 /**
  * ChordPro (.cho): {title}, optional {time}/{tempo}, then [Section] lines and inline chords.
  */
-export function exportAsChordPro(song: SongDetail, rhythm?: SongRhythmForExport | null): string {
+export function exportAsChordPro(
+  song: SongDetail,
+  rhythm?: SongRhythmForExport | null,
+  author?: AuthorSnapshot | null
+): string {
   let output = `{title: ${escapeChordProDirectiveValue(song.title || 'Untitled Song')}}\n`;
   output +=
     '{comment: Provenance export — ChordPro syntax; tab/measures intended for backup in Provenance. Other apps: best-effort display.}\n';
@@ -207,6 +224,11 @@ export function exportAsChordPro(song: SongDetail, rhythm?: SongRhythmForExport 
     output += `[${safeLabel}]\n`;
     output += exportChordProSectionLines(section.lines ?? []);
     output += '\n';
+  }
+  if (author) {
+    for (const line of authorSnapshotAsText(author).split('\n')) {
+      output += `{comment: ${escapeChordProDirectiveValue(line)}}\n`;
+    }
   }
   return output;
 }
@@ -268,7 +290,8 @@ function escapeHtml(s: string): string {
 export function exportAsHTML(
   song: SongDetail,
   chordChartsHtml?: string,
-  rhythm?: SongRhythmForExport | null
+  rhythm?: SongRhythmForExport | null,
+  author?: AuthorSnapshot | null
 ): string {
   let html = `<!DOCTYPE html>
 <html>
@@ -403,6 +426,15 @@ export function exportAsHTML(
     html += `  </div>\n`;
   });
 
+  if (author) {
+    html += `<div class="author-details" style="margin-top:40px;padding-top:16px;border-top:1px solid #ddd;font-size:0.85rem;color:#333;">
+  <p style="font-weight:bold;margin:0 0 4px 0;">${AUTHOR_SUPPLIED_LABEL} (snapshot ${author.snapshotAt})</p>
+  ${author.songwriterName ? `<p style="margin:2px 0;">Songwriter: ${escapeHtml(author.songwriterName)}</p>` : ''}
+  ${author.legalName ? `<p style="margin:2px 0;">Legal name: ${escapeHtml(author.legalName)}</p>` : ''}
+  ${author.contactOrWebsite ? `<p style="margin:2px 0;">Contact: ${escapeHtml(author.contactOrWebsite)}</p>` : ''}
+</div>
+`;
+  }
   html += `</body>
 </html>`;
 
@@ -417,9 +449,10 @@ export function exportAsHTML(
 export function openSongPrintView(
   song: SongDetail,
   chordChartsHtml: string,
-  rhythm?: SongRhythmForExport | null
+  rhythm?: SongRhythmForExport | null,
+  author?: AuthorSnapshot | null
 ): void {
-  let html = exportAsHTML(song, chordChartsHtml, rhythm);
+  let html = exportAsHTML(song, chordChartsHtml, rhythm, author);
   const printScript =
     '<script>window.onload=function(){setTimeout(function(){window.print();},300);};<\/script>';
   html = html.replace('</body>', printScript + '\n</body>');

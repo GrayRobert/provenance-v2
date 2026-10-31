@@ -19,6 +19,8 @@ import {
   type SongRhythmForExport,
 } from '@/lib/export';
 import type { Instrument, SongDetail } from '@/lib/types';
+import { buildAuthorSnapshot } from '@/lib/authorSnapshot';
+import { getLocalProfile } from '@/lib/localDb';
 import { cn } from '@/lib/utils';
 
 export interface ExportDrawerProps {
@@ -42,22 +44,25 @@ export function ExportDrawer({
   getChordChartsHtml,
 }: ExportDrawerProps) {
   const filename = song?.title || 'song';
+  // Author snapshot is taken at the moment of export, so later profile edits
+  // never rewrite an export that already exists.
+  const authorSnapshot = () => buildAuthorSnapshot(getLocalProfile()) ?? undefined;
   const handleExportText = () => {
     if (!song) return;
-    const text = exportAsText(song, rhythm ?? undefined);
+    const text = exportAsText(song, rhythm ?? undefined, authorSnapshot());
     downloadFile(text, `${filename}.txt`, 'text/plain');
     onOpenChange(false);
   };
   const handleExportChordPro = () => {
     if (!song) return;
-    const text = exportAsChordPro(song, rhythm ?? undefined);
+    const text = exportAsChordPro(song, rhythm ?? undefined, authorSnapshot());
     downloadFile(text, `${filename}.cho`, 'text/plain');
     onOpenChange(false);
   };
   const handleExportHTML = () => {
     if (!song) return;
     const chordChartsHtml = getChordChartsHtml?.() ?? '';
-    const html = exportAsHTML(song, chordChartsHtml, rhythm ?? undefined);
+    const html = exportAsHTML(song, chordChartsHtml, rhythm ?? undefined, authorSnapshot());
     downloadFile(html, `${filename}.html`, 'text/html');
     onOpenChange(false);
   };
@@ -67,7 +72,7 @@ export function ExportDrawer({
       instrument === 'guitar'
         ? buildChordChartsTabHtml(song, instrument)
         : getChordChartsHtml?.() ?? '';
-    let html = exportAsHTML(song, chordChartsHtml, rhythm ?? undefined);
+    let html = exportAsHTML(song, chordChartsHtml, rhythm ?? undefined, authorSnapshot());
     if (instrument !== 'guitar') html = replaceSvgWithInlineImages(html);
     const mht = htmlToMht(html);
     downloadFile(mht, `${filename}.doc`, 'application/x-mimearchive');
@@ -76,7 +81,7 @@ export function ExportDrawer({
   const handlePrint = () => {
     if (!song) return;
     const chordChartsHtml = getChordChartsHtml?.() ?? '';
-    openSongPrintView(song, chordChartsHtml, rhythm ?? undefined);
+    openSongPrintView(song, chordChartsHtml, rhythm ?? undefined, authorSnapshot());
     onOpenChange(false);
   };
 

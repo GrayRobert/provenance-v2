@@ -1186,6 +1186,11 @@ export interface UserProfileResponse {
   avatarUrl: string | null;
   authorName: string | null;
   authorNameObfuscate: boolean;
+  legalName: string | null;
+  contactOrWebsite: string | null;
+  showAuthorNameOnExport: boolean;
+  showLegalNameOnExport: boolean;
+  showContactOnExport: boolean;
   linkedAuthMethods: string[];
   createdAt?: string;
   plan: string | null;
@@ -1197,6 +1202,11 @@ export interface UserProfileUpdateRequest {
   avatarUrl?: string | null;
   authorName?: string | null;
   authorNameObfuscate?: boolean | null;
+  legalName?: string | null;
+  contactOrWebsite?: string | null;
+  showAuthorNameOnExport?: boolean | null;
+  showLegalNameOnExport?: boolean | null;
+  showContactOnExport?: boolean | null;
 }
 
 export interface StorageUsage {
@@ -1223,6 +1233,21 @@ export const profileApi = {
         body.authorNameObfuscate !== undefined
           ? Boolean(body.authorNameObfuscate)
           : current.authorNameObfuscate,
+      legalName: body.legalName !== undefined ? body.legalName : current.legalName,
+      contactOrWebsite:
+        body.contactOrWebsite !== undefined ? body.contactOrWebsite : current.contactOrWebsite,
+      showAuthorNameOnExport:
+        body.showAuthorNameOnExport !== undefined
+          ? Boolean(body.showAuthorNameOnExport)
+          : current.showAuthorNameOnExport,
+      showLegalNameOnExport:
+        body.showLegalNameOnExport !== undefined
+          ? Boolean(body.showLegalNameOnExport)
+          : current.showLegalNameOnExport,
+      showContactOnExport:
+        body.showContactOnExport !== undefined
+          ? Boolean(body.showContactOnExport)
+          : current.showContactOnExport,
     };
     saveLocalProfile(next);
     return next;

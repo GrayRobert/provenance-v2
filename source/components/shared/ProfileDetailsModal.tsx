@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { profileApi, effectiveAvatarUrl, type UserProfileResponse } from '@/lib/api';
+import { AUTHOR_SUPPLIED_LABEL } from '@/lib/authorSnapshot';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/shared/Avatar';
 import {
   Dialog,
@@ -45,6 +46,11 @@ export function ProfileDetailsModal({
   const [avatarUrl, setAvatarUrl] = useState('');
   const [authorName, setAuthorName] = useState('');
   const [authorNameObfuscate, setAuthorNameObfuscate] = useState(false);
+  const [legalName, setLegalName] = useState('');
+  const [contactOrWebsite, setContactOrWebsite] = useState('');
+  const [showAuthorNameOnExport, setShowAuthorNameOnExport] = useState(true);
+  const [showLegalNameOnExport, setShowLegalNameOnExport] = useState(false);
+  const [showContactOnExport, setShowContactOnExport] = useState(false);
 
   useEffect(() => {
     setProfile(initialProfile);
@@ -62,6 +68,11 @@ export function ProfileDetailsModal({
           setAvatarUrl(p.avatarUrl ?? '');
           setAuthorName(p.authorName ?? '');
           setAuthorNameObfuscate(p.authorNameObfuscate ?? false);
+          setLegalName(p.legalName ?? '');
+          setContactOrWebsite(p.contactOrWebsite ?? '');
+          setShowAuthorNameOnExport(p.showAuthorNameOnExport ?? true);
+          setShowLegalNameOnExport(p.showLegalNameOnExport ?? false);
+          setShowContactOnExport(p.showContactOnExport ?? false);
         })
         .catch(() => setError('Could not load profile.'))
         .finally(() => setLoading(false));
@@ -70,6 +81,11 @@ export function ProfileDetailsModal({
       setAvatarUrl(profile.avatarUrl ?? '');
       setAuthorName(profile.authorName ?? '');
       setAuthorNameObfuscate(profile.authorNameObfuscate ?? false);
+      setLegalName(profile.legalName ?? '');
+      setContactOrWebsite(profile.contactOrWebsite ?? '');
+      setShowAuthorNameOnExport(profile.showAuthorNameOnExport ?? true);
+      setShowLegalNameOnExport(profile.showLegalNameOnExport ?? false);
+      setShowContactOnExport(profile.showContactOnExport ?? false);
       setError(null);
     }
   }, [open, profile]);
@@ -85,6 +101,11 @@ export function ProfileDetailsModal({
         avatarUrl: avatarUrl.trim() || null,
         authorName: authorName.trim() || null,
         authorNameObfuscate,
+        legalName: legalName.trim() || null,
+        contactOrWebsite: contactOrWebsite.trim() || null,
+        showAuthorNameOnExport,
+        showLegalNameOnExport,
+        showContactOnExport,
       });
       setProfile(updated);
       onSaved?.(updated);
@@ -100,9 +121,13 @@ export function ProfileDetailsModal({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Profile</DialogTitle>
+          <DialogTitle>Songwriter Profile</DialogTitle>
         </DialogHeader>
-        <p className="text-sm text-muted-foreground -mt-2">Edit your display name and avatar URL.</p>
+        <p className="text-sm text-muted-foreground -mt-2">
+          {AUTHOR_SUPPLIED_LABEL} - shown on your songs and exports as you provide them, not
+          independently verified. Each export keeps its own snapshot, so later edits here never
+          rewrite an export you already made.
+        </p>
         {loading ? (
           <p className="text-sm text-muted-foreground py-4">Loading profile…</p>
         ) : (
@@ -125,7 +150,7 @@ export function ProfileDetailsModal({
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Your display name"
+                placeholder="Name or pen name shown in the header"
                 className="block w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
               />
             </div>
@@ -170,6 +195,50 @@ export function ProfileDetailsModal({
                 />
               </button>
             </div>
+            <div>
+              <label htmlFor="profile-modal-legalName" className="block text-sm font-medium text-foreground mb-1">
+                Legal name (optional)
+              </label>
+              <input
+                id="profile-modal-legalName"
+                type="text"
+                value={legalName}
+                onChange={(e) => setLegalName(e.target.value)}
+                placeholder="Only if you want it on exports"
+                className="block w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              />
+            </div>
+            <div>
+              <label htmlFor="profile-modal-contactOrWebsite" className="block text-sm font-medium text-foreground mb-1">
+                Contact or website (optional)
+              </label>
+              <input
+                id="profile-modal-contactOrWebsite"
+                type="text"
+                value={contactOrWebsite}
+                onChange={(e) => setContactOrWebsite(e.target.value)}
+                placeholder="e.g. your site, email or social link"
+                className="block w-full px-3 py-2 border border-border rounded-md bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+              />
+            </div>
+            <fieldset className="border border-border rounded-md p-3 space-y-2">
+              <legend className="text-sm font-medium text-foreground px-1">Show on exported Song History</legend>
+              {([
+                ['author', showAuthorNameOnExport, setShowAuthorNameOnExport, 'Songwriter name'],
+                ['legal', showLegalNameOnExport, setShowLegalNameOnExport, 'Legal name'],
+                ['contact', showContactOnExport, setShowContactOnExport, 'Contact or website'],
+              ] as const).map(([key, value, setter, label]) => (
+                <label key={key} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={value}
+                    onChange={(e) => setter(e.target.checked)}
+                    className="h-4 w-4 accent-[#f6992c]"
+                  />
+                  {label}
+                </label>
+              ))}
+            </fieldset>
             <div>
               <label htmlFor="profile-modal-avatarUrl" className="block text-sm font-medium text-foreground mb-1">
                 Avatar URL

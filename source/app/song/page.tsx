@@ -623,7 +623,7 @@ function SongEditorPageInner() {
         </div>
       )}
 
-      <AppHeader profile={profile} user={user} logout={logout} />
+      <AppHeader profile={profile} user={user} logout={logout} onProfileSaved={setProfile} />
 
       <div className="flex flex-1 min-h-0 w-full">
         <main className="flex-1 min-w-0 py-8 overflow-auto">

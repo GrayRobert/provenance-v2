@@ -1,14 +1,17 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, PenLine } from 'lucide-react';
 import { ProvenanceLogo } from '@/components/shared/ProvenanceLogo';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/shared/Avatar';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/shared/ui/dropdown-menu';
+import { ProfileDetailsModal } from '@/components/shared/ProfileDetailsModal';
 import { profileDisplayName } from '@/lib/profileDisplayName';
 import { cn } from '@/lib/utils';
 import { effectiveAvatarUrl, type UserProfileResponse } from '@/lib/api';
@@ -29,11 +32,14 @@ type AppHeaderProps = {
   user: { email: string } | null;
   logout?: () => void;
   className?: string;
+  /** Called after the songwriter saves their profile so pages can refresh header state. */
+  onProfileSaved?: (profile: UserProfileResponse) => void;
 };
 
-export function AppHeader({ profile, user, className }: AppHeaderProps) {
+export function AppHeader({ profile, user, className, onProfileSaved }: AppHeaderProps) {
   const displayName = profileDisplayName(profile, user?.email);
   const avatarSrc = effectiveAvatarUrl(profile?.avatarUrl);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   return (
     <header
@@ -66,6 +72,13 @@ export function AppHeader({ profile, user, className }: AppHeaderProps) {
               <p className="truncate text-xs text-muted-foreground">{user?.email ?? ''}</p>
             </div>
             <div className="p-1">
+              <DropdownMenuItem
+                className="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm"
+                onSelect={() => setProfileModalOpen(true)}
+              >
+                <PenLine className="size-4 shrink-0 text-muted-foreground" />
+                Songwriter Profile
+              </DropdownMenuItem>
               <div className="px-3 py-2 text-xs text-muted-foreground">
                 Songs are stored on this device. Use Export backup on the songs page to keep a copy.
               </div>
@@ -73,6 +86,13 @@ export function AppHeader({ profile, user, className }: AppHeaderProps) {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
+      <ProfileDetailsModal
+        open={profileModalOpen}
+        onOpenChange={setProfileModalOpen}
+        profile={profile}
+        userEmail={user?.email}
+        onSaved={onProfileSaved}
+      />
     </header>
   );
 }

@@ -168,29 +168,48 @@ export interface LocalProfile {
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
+  /** Songwriter / pen name shown on the timeline, certificate and exports. */
   authorName: string | null;
   authorNameObfuscate: boolean;
+  /** Optional legal name (never required; supplied by the songwriter). */
+  legalName: string | null;
+  /** Optional contact or website (supplied by the songwriter). */
+  contactOrWebsite: string | null;
+  /** Which author details appear on exported Song History / song exports. */
+  showAuthorNameOnExport: boolean;
+  showLegalNameOnExport: boolean;
+  showContactOnExport: boolean;
   linkedAuthMethods: string[];
   createdAt: string;
   plan: string | null;
   role?: string;
 }
 
+const DEFAULT_PROFILE: LocalProfile = {
+  userId: LOCAL_USER_ID,
+  email: '',
+  displayName: 'You',
+  avatarUrl: null,
+  authorName: null,
+  authorNameObfuscate: false,
+  legalName: null,
+  contactOrWebsite: null,
+  showAuthorNameOnExport: true,
+  showLegalNameOnExport: false,
+  showContactOnExport: false,
+  linkedAuthMethods: [],
+  createdAt: '',
+  plan: 'local',
+  role: 'standard',
+};
+
 export function getLocalProfile(): LocalProfile {
   const existing = readJson<LocalProfile | null>(PROFILE_KEY, null);
-  if (existing) return existing;
-  const created: LocalProfile = {
-    userId: LOCAL_USER_ID,
-    email: '',
-    displayName: 'You',
-    avatarUrl: null,
-    authorName: null,
-    authorNameObfuscate: false,
-    linkedAuthMethods: [],
-    createdAt: new Date().toISOString(),
-    plan: 'local',
-    role: 'standard',
-  };
+  if (existing) {
+    // Merge over defaults so profiles stored before new fields existed stay valid.
+    return { ...DEFAULT_PROFILE, ...existing };
+  }
+  const created: LocalProfile = { ...DEFAULT_PROFILE, createdAt: new Date().toISOString() };
   writeJson(PROFILE_KEY, created);
   return created;
 }
@@ -427,6 +446,9 @@ export async function restoreBackup(raw: string): Promise<RestoreResult> {
     for (const [pluginId, settings] of Object.entries(parsed.pluginSettings)) {
       writeJson(pluginKey(pluginId), settings);
     }
+  }
+  if (parsed.profile && typeof parsed.profile === 'object') {
+    saveLocalProfile({ ...DEFAULT_PROFILE, ...parsed.profile });
   }
   return { songsRestored: restored };
 }
