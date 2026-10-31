@@ -1288,7 +1288,7 @@ export const certApi = {
   verifyTsr: async (_certId: string): Promise<{ verified: boolean; message: string } | null> => null,
 };
 
-/* ---------- chord library (hosted guitar DB; piano computed client-side) ---------- */
+/* ---------- chord library (static local guitar files; piano computed client-side) ---------- */
 
 export interface ChordVoicingDTO {
   id: string;
@@ -1305,10 +1305,29 @@ export interface ChordVoicingDTO {
 }
 
 export const chordLibraryApi = {
-  getVoicings: async (_instrument: string, _symbol: string): Promise<ChordVoicingDTO[]> => [],
-  getVoicingById: async (_id: string): Promise<ChordVoicingDTO | null> => null,
-  createPianoVoicing: async (..._args: unknown[]): Promise<ChordVoicingDTO> => {
-    throw NOT_IN_LOCAL('Saving piano voicings');
+  getVoicings: async (instrument: string, symbol: string): Promise<ChordVoicingDTO[]> => {
+    if (instrument !== 'guitar') return [];
+    const { getGuitarVoicings } = await import('./localChordLibrary');
+    return getGuitarVoicings(symbol);
+  },
+  getVoicingById: async (id: string): Promise<ChordVoicingDTO | null> => {
+    const { getGuitarVoicingById } = await import('./localChordLibrary');
+    return getGuitarVoicingById(id);
+  },
+  // Piano voicings are user-saved selections of the client-computed shapes; stored
+  // locally alongside other user voicings (hosted backend kept them in Postgres).
+  createPianoVoicing: async (params: {
+    symbol: string;
+    notes: string[];
+    name?: string;
+  }): Promise<ChordVoicingDTO> => {
+    const created = await userVoicingsApi.create({
+      instrument: 'piano',
+      normalizedSymbol: params.symbol,
+      name: params.name,
+      chordData: { notes: params.notes },
+    });
+    return { id: created.id, chord: created.chord, name: created.name, source: 'generated' };
   },
 };
 

@@ -60,6 +60,27 @@ export function useSongCommandQueue({
         clearTimeout(flushTimeoutRef.current);
         flushTimeoutRef.current = null;
       }
+      // Flush pending commands on unmount (e.g. client-side navigation) so
+      // edits made within the debounce window are not silently dropped.
+      if (queueRef.current.length > 0) void flushFnRef.current?.();
+    };
+  }, []);
+
+  // Best-effort flush when the tab is closed or backgrounded mid-debounce.
+  // Async work may not finish on a real page unload, so this is not a
+  // guarantee, but it covers backgrounding and most navigations.
+  useEffect(() => {
+    const flushPending = () => {
+      if (queueRef.current.length > 0) void flushFnRef.current?.();
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') flushPending();
+    };
+    window.addEventListener('pagehide', flushPending);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('pagehide', flushPending);
+      document.removeEventListener('visibilitychange', onVisibility);
     };
   }, []);
 

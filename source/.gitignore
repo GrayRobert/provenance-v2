@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# chord dictionary intermediate (regenerate via scripts/fetch-szaza-chords.js)
+/data/

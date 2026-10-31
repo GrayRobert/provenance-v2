@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import ServiceWorkerRegistration from "@/components/shared/ServiceWorkerRegistration";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./ThemeProvider";
@@ -55,6 +56,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/provenance-v2/manifest.webmanifest" />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
       </head>
       <body
@@ -63,6 +65,7 @@ export default function RootLayout({
         <ThemeProvider>
           <ChatUnreadProvider>{children}</ChatUnreadProvider>
         </ThemeProvider>
+        <ServiceWorkerRegistration />
         <Toaster />
       </body>
     </html>

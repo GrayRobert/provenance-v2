@@ -1,7 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2017",
-    "lib": ["dom", "dom.iterable", "esnext"],
+    "lib": [
+      "dom",
+      "dom.iterable",
+      "esnext"
+    ],
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
@@ -19,8 +23,12 @@
       }
     ],
     "paths": {
-      "@/components/ui/*": ["./components/ui/*"],
-      "@/*": ["./*"]
+      "@/components/ui/*": [
+        "./components/ui/*"
+      ],
+      "@/*": [
+        "./*"
+      ]
     }
   },
   "include": [
@@ -39,6 +47,8 @@
     "lib/audio-recorder-design",
     "lib/chord-generator-tool",
     "lib/digital-certificate-design",
-    "lib/song-structure"
+    "lib/song-structure",
+    "data",
+    "public/chords"
   ]
 }
