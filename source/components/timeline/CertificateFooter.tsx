@@ -13,7 +13,6 @@ export function CertificateFooter({
   rootHash,
   latestHash,
   eventCount,
-  hashesFromApi = false,
 }: CertificateFooterProps) {
   return (
     <div className="rounded-lg border border-border bg-surface p-5">
@@ -46,15 +45,11 @@ export function CertificateFooter({
       </div>
       <div className="mt-5 border-t border-border pt-4">
         <p className="text-[10px] leading-relaxed text-muted">
-          This certificate is cryptographically secured using SHA-256 hash chaining. Each event
-          references the hash of its predecessor, forming an immutable provenance chain. Any
-          modification to historical data will invalidate all subsequent hashes, making tampering
-          immediately detectable. Chain depth: {eventCount} blocks.
-          {!hashesFromApi && (
-            <span className="mt-1 block">
-              Hash values will be shown here when the API supports them.
-            </span>
-          )}
+          Each event references the SHA-256 hash of its predecessor, forming a tamper-evident
+          chain over the history stored in this browser. Modifying the stored history invalidates
+          all subsequent hashes, which this verification detects. Verification happens entirely on
+          this device: it is not a trusted timestamp and not independent proof of authorship.
+          Chain depth: {eventCount} events.
         </p>
       </div>
     </div>

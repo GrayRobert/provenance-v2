@@ -30,7 +30,6 @@ import { MetadataGrid } from '@/components/timeline/MetadataGrid';
 import { SplitsTable } from '@/components/timeline/SplitsTable';
 import { ArtifactsSection } from '@/components/timeline/ArtifactsSection';
 import { CertificateFooter } from '@/components/timeline/CertificateFooter';
-import { QRCodeSection } from '@/components/timeline/QRCodeSection';
 import { formatTsTimestamp } from '@/lib/format';
 import { TimelineBottomBar } from '@/components/timeline/TimelineBottomBar';
 import { Activity, FileText, Home, Loader2, UsersRound } from 'lucide-react';
@@ -332,6 +331,21 @@ function TimelinePageInner() {
   const sessions = groupEventsIntoSessions(events);
   const coverage = analyzeEvidenceCoverage(rawEvents);
 
+  // History-start boundary: history recording was introduced after some songs
+  // already had content, and backups from before it carry no events. Surface
+  // that boundary instead of suggesting the log covers the song's lifetime.
+  const songHasContent = Boolean(
+    songDetail?.sections?.some((s) => (s.lines?.length ?? 0) > 0) ||
+    artifacts.length > 0 ||
+    workMetadataItems.length > 0
+  );
+  const earliestEvent = rawEvents.length > 0 ? rawEvents[0] : undefined;
+  const songPredatesLog = Boolean(
+    songDetail?.createdAt &&
+    earliestEvent &&
+    new Date(songDetail.createdAt).getTime() < new Date(earliestEvent.timestamp).getTime() - 60_000
+  );
+
   const certificateId = certSnapshot?.certificateId ?? '—';
   const rootHash = certSnapshot?.rootHash ?? PLACEHOLDER_HASH;
   const latestHash = certSnapshot?.latestHash ?? PLACEHOLDER_HASH;
@@ -473,6 +487,16 @@ function TimelinePageInner() {
 
           <SectionDivider label="Immutable Event Log" />
 
+          {songPredatesLog && earliestEvent && (
+            <div className="rounded-lg border border-border bg-surface p-4">
+              <p className="text-xs leading-relaxed text-muted">
+                History recording started after this song already existed, so the log begins
+                at {formatTsTimestamp(earliestEvent.timestamp)}. Earlier activity is not
+                shown and cannot be reconstructed.
+              </p>
+            </div>
+          )}
+
           {sessions.length > 0 ? (
             <div>
               <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.15em] text-muted">
@@ -514,13 +538,36 @@ function TimelinePageInner() {
             </div>
           ) : (
             <div className="rounded-lg border border-border bg-surface p-8 text-center">
-              <p className="text-muted">No events recorded yet. Start creating!</p>
+              {songHasContent ? (
+                <p className="text-muted">
+                  This song&apos;s content predates history recording, so there are no events
+                  to show yet. Everything you add or change from now on is recorded here.
+                </p>
+              ) : (
+                <p className="text-muted">No events recorded yet. Start creating!</p>
+              )}
             </div>
           )}
 
           <SectionDivider label="Verification" />
 
-          <QRCodeSection certificateId={certificateId} />
+          <div className="rounded-lg border border-border bg-surface p-5">
+            <h2 className="mb-1 text-xs font-semibold uppercase tracking-[0.15em] text-muted">
+              Verification
+            </h2>
+            <p className="mb-4 text-xs leading-relaxed text-muted/70">
+              The hash chain is verified on this device against the history stored in this
+              browser. This detects changes to that stored history; it does not prove when
+              events originally happened and is not independently witnessed. The public
+              verification page is not part of this local version.
+            </p>
+            <div>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted">
+                Validation ID
+              </p>
+              <p className="break-all font-mono text-sm text-foreground">{certificateId}</p>
+            </div>
+          </div>
 
           <CertificateFooter
             rootHash={rootHash}
@@ -581,7 +628,7 @@ function TimelinePageInner() {
             <div className="flex items-center gap-1.5">
               <ProvenanceLogo iconSize={14} hideText />
               <span className="text-[10px] font-medium uppercase tracking-[0.2em] text-muted">
-                Tamper-Proof · Hash-Chained · Immutable
+                Hash-Chained · Tamper-Evident · Verified On This Device
               </span>
             </div>
             <p className="font-mono text-[10px] text-muted/60">{certificateId}</p>

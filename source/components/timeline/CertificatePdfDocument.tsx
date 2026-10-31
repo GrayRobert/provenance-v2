@@ -433,7 +433,7 @@ export function CertificatePdfDocument({ payload }: { payload: CertificatePdfPay
 
   return (
     <Document
-      title={`Certificate of Authenticity – ${payload.songTitle}`}
+      title={`Song History – ${payload.songTitle}`}
       author="Provenance"
     >
       <Page size="A4" style={styles.page}>
@@ -451,7 +451,7 @@ export function CertificatePdfDocument({ payload }: { payload: CertificatePdfPay
               </View>
             )}
             <View style={styles.headerTitles}>
-              <Text style={styles.sectionLabel}>Certificate of Authenticity</Text>
+              <Text style={styles.sectionLabel}>Song History</Text>
               <Text style={styles.certId}>{payload.certificateId}</Text>
             </View>
           </View>
@@ -623,25 +623,13 @@ export function CertificatePdfDocument({ payload }: { payload: CertificatePdfPay
         {/* Verification + QR */}
         <Text style={styles.sectionTitle}>Verification</Text>
         <View style={styles.box}>
-          <View style={styles.coverageRow}>
-            <Text style={styles.bodyText}>This certificate can be verified at: </Text>
-            {payload.verifyUrl ? (
-              <Link src={payload.verifyUrl} style={[styles.bodyText, styles.link]}>
-                {payload.verifyUrl}
-              </Link>
-            ) : (
-              <Text style={styles.bodyText}>/authenticate/{payload.certificateId}</Text>
-            )}
-          </View>
-          <Text style={styles.bodyText}>Certificate ID: {payload.certificateId}</Text>
-          {payload.qrDataUrl && (
-            <>
-              <Image src={payload.qrDataUrl} style={styles.qrImage} />
-              <Text style={[styles.bodyText, { color: colors.muted, fontSize: 8 }]}>
-                Scan to open the public certificate page
-              </Text>
-            </>
-          )}
+          <Text style={styles.bodyText}>
+            The hash chain in this document was verified on the device that exported it,
+            against the history stored in that browser. This detects changes to the stored
+            history; it does not prove when events originally happened and is not
+            independently witnessed.
+          </Text>
+          <Text style={styles.bodyText}>Validation ID: {payload.certificateId}</Text>
         </View>
 
         {/* Cryptographic Summary */}
@@ -672,10 +660,11 @@ export function CertificatePdfDocument({ payload }: { payload: CertificatePdfPay
               Chain depth: {payload.eventCount} blocks.
             </Text>
             <Text style={[styles.bodyText, { color: colors.muted, fontSize: 8 }]}>
-              This certificate is cryptographically secured using SHA-256 hash chaining. Each event
-              references the hash of its predecessor, forming an immutable provenance chain. Any
-              modification to historical data will invalidate all subsequent hashes, making
-              tampering immediately detectable.
+              Each event references the SHA-256 hash of its predecessor, forming a tamper-evident
+              chain over the history stored in this browser. Modifying the stored history
+              invalidates all subsequent hashes, which this verification detects. Verification
+              happens on this device only: it is not a trusted timestamp and not independent
+              proof of authorship.
             </Text>
           </View>
         </View>

@@ -26,7 +26,9 @@ export function ChainIntegrityBanner({
         <div onClick={(e) => e.stopPropagation()}>
           <HelpText trigger="icon">
             Each creative action is cryptographically linked to the one before it.
-            If any event were changed, this verification would fail.
+            Verification compares the events stored in this browser against that chain,
+            so changes to the stored history are detected. It does not prove when events
+            originally happened and is not independently witnessed.
           </HelpText>
         </div>
       </div>
@@ -35,7 +37,7 @@ export function ChainIntegrityBanner({
           {verified ? (
             <p className="flex items-center gap-1.5 text-green-600 dark:text-green-400">
               <Check className="h-3.5 w-3.5 shrink-0" />
-              <span className="ml-1.5">No events in this song&apos;s history have been altered</span>
+              <span className="ml-1.5">This song&apos;s stored history matches its hash chain (verified on this device)</span>
             </p>
           ) : (
             <div className="flex flex-col gap-1.5 text-destructive">

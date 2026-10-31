@@ -26,7 +26,7 @@ export function CertificateHeader({
           <ProvenanceLogo iconSize={28} hideText />
           <div>
             <p className="text-[10px] font-medium uppercase tracking-[0.15em] text-muted">
-              Certificate of Authenticity
+              Song History
             </p>
             <p className="font-mono text-xs text-muted">{certificateId}</p>
           </div>

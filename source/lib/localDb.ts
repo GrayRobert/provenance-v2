@@ -4,6 +4,7 @@
  * All song data lives in localStorage. Nothing here talks to a server.
  * The backup/restore functions serialize the whole workspace to one JSON file.
  */
+import { getStoredEvents, setStoredEvents } from './localEvents';
 import type { Note, Recording, SongDetail, SongSummary, TrackLabProject, WorkMetadataItem } from './types';
 import {
   base64ToBlob,
@@ -284,6 +285,10 @@ export const BACKUP_FORMAT = 'provenance-v2-backup';
  * v1: songs/notes/metadata only.
  * v2: adds recordings metadata + base64 audio (recordings/audioData).
  * v1 backups still restore; the audio fields are simply absent.
+ * The optional events field carries each song's hash-chained event log
+ * verbatim (exact stored strings), so a restored history re-verifies without
+ * re-hashing. Older backups simply have no events; history recording then
+ * starts from the next edit.
  */
 export const BACKUP_VERSION = 2;
 
@@ -302,6 +307,8 @@ export interface BackupFile {
   trackLabProjects?: Record<string, LocalTrackLabProject[]>;
   /** Base64 audio payload per recordingId (v2+). */
   audioData?: Record<string, string>;
+  /** Hash-chained event log per song (optional, additive). */
+  events?: Record<string, import('./localEvents').StoredEvent[]>;
 }
 
 export async function buildBackup(): Promise<BackupFile> {
@@ -312,6 +319,7 @@ export async function buildBackup(): Promise<BackupFile> {
   const recordings: Record<string, Recording[]> = {};
   const audioData: Record<string, string> = {};
   const trackLabProjects: Record<string, LocalTrackLabProject[]> = {};
+  const events: Record<string, import('./localEvents').StoredEvent[]> = {};
   for (const summary of index) {
     const detail = getSongDetail(summary.songId);
     if (detail) {
@@ -320,6 +328,8 @@ export async function buildBackup(): Promise<BackupFile> {
       metadata[summary.songId] = getMetadataItems(summary.songId);
       const projects = getLocalTrackLabProjects(summary.songId);
       if (projects.length > 0) trackLabProjects[summary.songId] = projects;
+      const songEvents = getStoredEvents(summary.songId);
+      if (songEvents.length > 0) events[summary.songId] = songEvents;
     }
   }
   try {
@@ -355,6 +365,7 @@ export async function buildBackup(): Promise<BackupFile> {
     recordings,
     audioData,
     trackLabProjects,
+    events,
   };
 }
 
@@ -387,6 +398,11 @@ export async function restoreBackup(raw: string): Promise<RestoreResult> {
     if (parsed.metadata?.[song.songId]) saveMetadataItems(song.songId, parsed.metadata[song.songId]);
     if (Array.isArray(parsed.trackLabProjects?.[song.songId])) {
       writeJson(trackLabKey(song.songId), parsed.trackLabProjects[song.songId]);
+    }
+    if (Array.isArray(parsed.events?.[song.songId])) {
+      // Verbatim restore: exact stored strings are what the chain is made of,
+      // so a restored log re-verifies only when byte-identical to the original.
+      setStoredEvents(song.songId, parsed.events[song.songId]);
     }
     restored++;
     // v2+: restore this song's recordings (audio payload required; skip entries without it).

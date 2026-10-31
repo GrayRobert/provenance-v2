@@ -2,10 +2,12 @@
  * api.ts - LOCAL-FIRST replacement for the hosted backend API.
  *
  * Same exported surface as the original server-backed module, implemented over
- * browser localStorage (see ./localDb). Features that genuinely need the hosted
- * backend (recordings, videos, lyrics scans, Track Lab audio, chat, teams,
- * certificates, the guitar chord library) are inert stubs for this slice:
- * reads return empty data and writes throw a clear error.
+ * browser localStorage (see ./localDb) plus a local append-only event log with
+ * SHA-256 hash chaining (see ./localEvents, a port of the original
+ * PostgresEventStore / HashChainService semantics). Features that genuinely
+ * need the hosted backend (videos, lyrics scans, chat, teams, TSA-anchored
+ * public certificates, the guitar chord library) are inert stubs for this
+ * slice: reads return empty data and writes throw a clear error.
  */
 import type { BatchCommand, BatchCommandRequest, BatchCommandResponse, BatchCommandResultItem } from './batch-types';
 import type {
@@ -83,6 +85,14 @@ import {
   saveLocalRecording,
   setLocalRecordingArchived,
 } from './localRecordings';
+import {
+  appendLocalEvents,
+  deleteLocalEventsForSong,
+  getStoredEvents,
+  toPublicEvents,
+  validateLocalChain,
+  type PendingEvent,
+} from './localEvents';
 
 const NOT_IN_LOCAL = (feature: string) =>
   new Error(`${feature} is not available in this local-only version yet.`);
@@ -112,57 +122,219 @@ function requireSong(songId: string): SongDetail {
   return song;
 }
 
+/* ---------- event recording helpers ---------- */
+
+function findLineById(song: SongDetail, lineId: string) {
+  for (const section of song.sections) {
+    for (const line of section.lines ?? []) {
+      if (line.lineId === lineId) return line;
+    }
+  }
+  return undefined;
+}
+
+function findChordLocation(song: SongDetail, chordId: string) {
+  for (const section of song.sections) {
+    for (const line of section.lines ?? []) {
+      const chord = (line.chords ?? []).find((c) => c.chordId === chordId);
+      if (chord) return { line, chord };
+    }
+  }
+  return undefined;
+}
+
+function eventSource(source: string | undefined, fallback: string = 'typed'): string {
+  return source && source.length > 0 ? source : fallback;
+}
+
 function applyCommand(
   song: SongDetail,
   command: BatchCommand,
-  results: BatchCommandResultItem[]
+  results: BatchCommandResultItem[],
+  pending: PendingEvent[]
 ): SongDetail {
+  const songId = song.songId;
+  const userId = LOCAL_USER_ID;
   switch (command.type) {
-    case 'SetTitle':
+    case 'SetTitle': {
+      pending.push({
+        eventType: 'SongTitleSetEvent',
+        payload: { songId, previousTitle: song.title, newTitle: command.payload.title, userId },
+        source: 'typed',
+      });
       return applySetTitle(song, command.payload.title);
+    }
     case 'AddSection': {
       const id = command.clientGeneratedId ?? crypto.randomUUID();
       results.push({ type: 'addSection', id });
+      const sectionType = command.payload.sectionType || 'VERSE';
+      const label = command.payload.label ?? '';
+      pending.push({
+        eventType: 'SectionAddedEvent',
+        payload: { sectionId: id, songId, sectionType, label, orderIndex: song.sections.length, userId },
+        source: 'system',
+      });
       return applyAddSection(song, id, command.payload.sectionType, command.payload.label);
     }
-    case 'EditSection':
+    case 'EditSection': {
+      const prev = song.sections.find((s) => s.sectionId === command.payload.sectionId);
+      const type = command.payload.sectionType || prev?.sectionType || 'VERSE';
+      const label = command.payload.label ?? prev?.label ?? '';
+      pending.push({
+        eventType: 'SectionEditedEvent',
+        payload: {
+          sectionId: command.payload.sectionId,
+          previousType: prev?.sectionType ?? '',
+          type,
+          previousLabel: prev?.label ?? '',
+          label,
+          userId,
+        },
+        source: 'typed',
+      });
       return applyEditSection(song, command.payload.sectionId, command.payload.sectionType, command.payload.label);
+    }
     case 'RepositionSection':
+      pending.push({
+        eventType: 'SectionRepositionedEvent',
+        payload: { sectionId: command.payload.sectionId, newOrderIndex: command.payload.newOrderIndex, userId },
+        source: 'reorder',
+      });
       return applyRepositionSection(song, command.payload.sectionId, command.payload.newOrderIndex);
     case 'ArchiveSection':
+      pending.push({
+        eventType: 'SectionArchivedEvent',
+        payload: { sectionId: command.payload.sectionId, userId },
+        source: 'system',
+      });
       return applyArchiveSection(song, command.payload.sectionId);
     case 'AddLine': {
       const id = command.clientGeneratedId ?? crypto.randomUUID();
       results.push({ type: 'addLine', id });
+      const section = song.sections.find((s) => s.sectionId === command.payload.sectionId);
+      pending.push({
+        eventType: 'LineAddedEvent',
+        payload: {
+          lineId: id,
+          sectionId: command.payload.sectionId,
+          text: command.payload.text,
+          orderIndex: section?.lines?.length ?? 0,
+          userId,
+        },
+        source: eventSource(command.payload.source),
+      });
       return applyAddLine(song, command.payload.sectionId, id, command.payload.text);
     }
-    case 'EditLine':
-      return applyEditLine(song, command.payload.lineId, command.payload.text);
-    case 'AddTabBlock': {
-      let next = song;
-      for (const line of command.payload.lines) {
-        const id = line.lineId ?? crypto.randomUUID();
-        if (line.lineId) {
-          next = applyEditLine(next, line.lineId, line.text);
-        } else {
-          results.push({ type: 'addLine', id });
-          next = applyAddLine(next, command.payload.sectionId, id, line.text);
+    case 'EditLine': {
+      const prev = findLineById(song, command.payload.lineId);
+      const source = eventSource(command.payload.source);
+      pending.push({
+        eventType: 'LineEditedEvent',
+        payload: { lineId: command.payload.lineId, previousText: prev?.text ?? '', newText: command.payload.text, userId },
+        source,
+      });
+      const next = applyEditLine(song, command.payload.lineId, command.payload.text);
+      // Chords orphaned by the edit (their token was deleted) get their own event,
+      // matching the original backend's provenance tracking.
+      const after = findLineById(next, command.payload.lineId);
+      for (const chord of after?.chords ?? []) {
+        const before = (prev?.chords ?? []).find((c) => c.chordId === chord.chordId);
+        if (chord.orphaned && before && !before.orphaned && before.tokenId) {
+          pending.push({
+            eventType: 'ChordOrphanedEvent',
+            payload: { chordId: chord.chordId, lineId: command.payload.lineId, tokenId: before.tokenId, chordSymbol: chord.chordSymbol, userId },
+            source,
+          });
         }
       }
       return next;
     }
-    case 'EditTabBlock': {
+    case 'AddTabBlock': {
+      const section = song.sections.find((s) => s.sectionId === command.payload.sectionId);
+      const orderBase = section?.lines?.length ?? 0;
+      const added: { lineId: string; text: string; orderIndex: number }[] = [];
+      const edited: { lineId: string; previousText: string; newText: string }[] = [];
       let next = song;
-      for (const line of command.payload.lines) {
-        next = applyEditLine(next, line.lineId, line.text);
+      command.payload.lines.forEach((line, i) => {
+        const id = line.lineId ?? crypto.randomUUID();
+        if (line.lineId) {
+          const prev = findLineById(next, line.lineId);
+          edited.push({ lineId: line.lineId, previousText: prev?.text ?? '', newText: line.text });
+          next = applyEditLine(next, line.lineId, line.text);
+        } else {
+          results.push({ type: 'addLine', id });
+          added.push({ lineId: id, text: line.text, orderIndex: orderBase + i });
+          next = applyAddLine(next, command.payload.sectionId, id, line.text);
+        }
+      });
+      const source = eventSource(command.payload.source);
+      if (added.length > 0) {
+        pending.push({
+          eventType: 'TabAddedEvent',
+          payload: { sectionId: command.payload.sectionId, lines: added, barCount: command.payload.barCount ?? null, widthPreset: command.payload.widthPreset ?? null, userId },
+          source,
+        });
+      }
+      if (edited.length > 0) {
+        pending.push({
+          eventType: 'TabEditedEvent',
+          payload: { lines: edited, barCount: command.payload.barCount ?? null, widthPreset: command.payload.widthPreset ?? null, userId },
+          source,
+        });
       }
       return next;
     }
+    case 'EditTabBlock': {
+      const edits: { lineId: string; previousText: string; newText: string }[] = [];
+      const orphanEvents: PendingEvent[] = [];
+      const source = eventSource(command.payload.source);
+      let next = song;
+      for (const row of command.payload.lines) {
+        const prev = findLineById(next, row.lineId);
+        edits.push({ lineId: row.lineId, previousText: prev?.text ?? '', newText: row.text });
+        next = applyEditLine(next, row.lineId, row.text);
+        const after = findLineById(next, row.lineId);
+        for (const chord of after?.chords ?? []) {
+          const before = (prev?.chords ?? []).find((c) => c.chordId === chord.chordId);
+          if (chord.orphaned && before && !before.orphaned && before.tokenId) {
+            orphanEvents.push({
+              eventType: 'ChordOrphanedEvent',
+              payload: { chordId: chord.chordId, lineId: row.lineId, tokenId: before.tokenId, chordSymbol: chord.chordSymbol, userId },
+              source,
+            });
+          }
+        }
+      }
+      pending.push({
+        eventType: 'TabEditedEvent',
+        payload: { lines: edits, barCount: command.payload.barCount ?? null, widthPreset: command.payload.widthPreset ?? null, userId },
+        source,
+      });
+      pending.push(...orphanEvents);
+      return next;
+    }
     case 'ArchiveLine':
+      pending.push({
+        eventType: 'LineArchivedEvent',
+        payload: { lineId: command.payload.lineId, userId },
+        source: 'system',
+      });
       return applyArchiveLine(song, command.payload.lineId);
     case 'AddChord': {
       const id = command.clientGeneratedId ?? crypto.randomUUID();
       results.push({ type: 'addChord', id });
+      pending.push({
+        eventType: 'ChordAddedEvent',
+        payload: {
+          chordId: id,
+          lineId: command.payload.lineId,
+          tokenId: command.payload.tokenId,
+          charOffset: command.payload.charOffset,
+          chordSymbol: command.payload.chordSymbol,
+          userId,
+        },
+        source: eventSource((command.payload as { source?: string }).source),
+      });
       return applyAddChord(
         song,
         command.payload.lineId,
@@ -172,15 +344,46 @@ function applyCommand(
         command.payload.chordSymbol
       );
     }
-    case 'EditChord':
+    case 'EditChord': {
+      const loc = findChordLocation(song, command.payload.chordId);
+      pending.push({
+        eventType: 'ChordEditedEvent',
+        payload: {
+          chordId: command.payload.chordId,
+          lineId: loc?.line.lineId ?? '',
+          previousSymbol: loc?.chord.chordSymbol ?? '',
+          newSymbol: command.payload.symbol,
+          userId,
+        },
+        source: 'typed',
+      });
       return applyEditChord(song, command.payload.chordId, command.payload.symbol);
+    }
     case 'RemoveChord':
+      pending.push({
+        eventType: 'ChordRemovedEvent',
+        payload: { chordId: command.payload.chordId, userId },
+        source: 'system',
+      });
       return applyRemoveChord(song, command.payload.chordId);
     case 'MoveChord': {
-      const line = song.sections
-        .flatMap((s) => s.lines ?? [])
-        .find((l) => l.lineId === command.payload.lineId);
+      const line = findLineById(song, command.payload.lineId);
       const resolved = tokenAtAbsoluteCharOffset(line, command.payload.absoluteCharOffset);
+      const prevChord = song.sections
+        .flatMap((s) => s.lines ?? [])
+        .flatMap((l) => l.chords ?? [])
+        .find((c) => c.chordId === command.payload.chordId);
+      pending.push({
+        eventType: 'ChordMovedEvent',
+        payload: {
+          chordId: command.payload.chordId,
+          previousTokenId: prevChord?.tokenId ?? null,
+          newTokenId: resolved?.tokenId ?? command.payload.lineId,
+          newCharOffset: resolved?.charOffsetInToken ?? 0,
+          userId,
+        },
+        source: 'typed',
+      });
       return applyMoveChord(
         song,
         command.payload.chordId,
@@ -188,25 +391,52 @@ function applyCommand(
         resolved?.charOffsetInToken ?? 0
       );
     }
-    case 'SetChordVoicing':
+    case 'SetChordVoicing': {
+      const loc = findChordLocation(song, command.payload.chordId);
+      pending.push({
+        eventType: 'VoicingSelectedEvent',
+        payload: { chordId: command.payload.chordId, lineId: loc?.line.lineId ?? '', voicingId: command.payload.voicingId, userId },
+        source: 'typed',
+      });
       return applySetChordVoicing(song, command.payload.chordId, command.payload.voicingId);
+    }
     case 'RecordSongScaffold':
       // Structure provenance is not stored in the local song document; content
       // arrives via the section/line commands that accompany this marker.
+      pending.push({
+        eventType: 'SongScaffoldAppliedEvent',
+        payload: {
+          songId,
+          genreId: command.payload.genreId,
+          genreName: command.payload.genreName,
+          structureId: command.payload.structureId,
+          structureName: command.payload.structureName,
+          source: command.payload.source ?? '',
+          userId,
+        },
+        source: 'system',
+      });
       return song;
     default:
       return song;
   }
 }
 
-function runBatch(songId: string, commands: BatchCommand[]): BatchCommandResponse {
+async function runBatch(songId: string, commands: BatchCommand[]): Promise<BatchCommandResponse> {
   const song = requireSong(songId);
   const results: BatchCommandResultItem[] = [];
+  const pending: PendingEvent[] = [];
   let next = song;
   for (const command of commands) {
-    next = applyCommand(next, command, results);
+    next = applyCommand(next, command, results, pending);
   }
-  const lastEventSequence = (song.lastEventSequence ?? 0) + commands.length;
+  // Events are appended before the song state is saved: if the append fails
+  // (e.g. localStorage quota) the edit is not persisted either, so a change is
+  // never silently missing from the history.
+  const appended = await appendLocalEvents(songId, pending);
+  const lastEventSequence = appended.length
+    ? appended[appended.length - 1]!.sequenceNumber
+    : (song.lastEventSequence ?? 0);
   saveSongDetail({ ...next, lastEventSequence });
   return { lastEventSequence, results };
 }
@@ -294,12 +524,15 @@ export const songApi = {
     collaborationChatEnabled: false,
   }),
 
-  getEvents: async (_songId: string, _after?: number): Promise<Event[]> => [],
+  getEvents: async (songId: string, after?: number): Promise<Event[]> => {
+    const events = toPublicEvents(getStoredEvents(songId));
+    return after == null ? events : events.filter((e) => e.sequenceNumber > after);
+  },
 
   getTimelineData: async (songId: string): Promise<TimelineData> => ({
-    events: [],
+    events: toPublicEvents(getStoredEvents(songId)),
     song: requireSong(songId),
-    recordings: [],
+    recordings: await listLocalRecordings(songId),
     lyricsScans: [],
     lyricsFiles: [],
     videos: [],
@@ -311,14 +544,29 @@ export const songApi = {
   submitBatch: async (songId: string, request: BatchCommandRequest): Promise<BatchCommandResponse> =>
     runBatch(songId, request.commands),
 
-  validateSong: async (_songId: string): Promise<ValidateResponse> => ({
-    valid: false,
-    certificateId: '',
-    rootHash: '',
-    latestHash: '',
-    eventCount: 0,
-    violationReason: 'Certificates are not available in the local version yet.',
-  }),
+  /**
+   * Verifies the song's local hash chain against the events stored in this
+   * browser. The returned certificateId identifies this validation result;
+   * it is not an independent attestation: the local chain detects changes to
+   * the stored history but is not externally witnessed or timestamped.
+   */
+  validateSong: async (songId: string): Promise<ValidateResponse> => {
+    const events = getStoredEvents(songId);
+    const validation = await validateLocalChain(events);
+    return {
+      valid: validation.valid,
+      certificateId: crypto.randomUUID(),
+      rootHash: events.length > 0 ? events[0]!.eventHash : '',
+      latestHash: events.length > 0 ? events[events.length - 1]!.eventHash : '',
+      eventCount: events.length,
+      ...(validation.valid
+        ? {}
+        : {
+            violationEventIndex: validation.violationEventIndex,
+            violationReason: validation.violationReason,
+          }),
+    };
+  },
 
   getRecordings: async (songId: string): Promise<Recording[]> => listLocalRecordings(songId),
   getRecordingArtifactUrl: (_songId: string, recordingId: string): string =>
@@ -362,26 +610,61 @@ export const songApi = {
       commands.push({ type: 'AddSection', payload: { sectionType: 'custom', label: secName } });
     }
     // The generic batch runner generates its own section ids, so apply the
-    // import directly here instead of through runBatch.
+    // import directly here instead of through runBatch, recording events as we go.
+    const pending: PendingEvent[] = [
+      { eventType: 'SongCreatedEvent', payload: { songId: song.songId, userId: LOCAL_USER_ID }, source: 'system' },
+    ];
     let next = getSongDetail(song.songId)!;
-    const results: BatchCommandResultItem[] = [];
-    if (parsed.title) next = applySetTitle(next, parsed.title);
+    if (parsed.title) {
+      pending.push({
+        eventType: 'SongTitleSetEvent',
+        payload: { songId: song.songId, previousTitle: next.title, newTitle: parsed.title, userId: LOCAL_USER_ID },
+        source: 'import',
+      });
+      next = applySetTitle(next, parsed.title);
+    }
     for (const secName of sectionOrder) {
-      next = applyAddSection(next, sectionIdMap.get(secName)!, 'custom', secName);
+      const secId = sectionIdMap.get(secName)!;
+      const secIndex = next.sections.length;
+      pending.push({
+        eventType: 'SectionAddedEvent',
+        payload: { sectionId: secId, songId: song.songId, sectionType: 'custom', label: secName, orderIndex: secIndex, userId: LOCAL_USER_ID },
+        source: 'import',
+      });
+      next = applyAddSection(next, secId, 'custom', secName);
     }
     for (const line of parsed.lines) {
       const secId = sectionIdMap.get(line.section ?? 'Lyrics')!;
       const lineId = crypto.randomUUID();
+      const lineOrder = next.sections.find((s) => s.sectionId === secId)?.lines?.length ?? 0;
+      pending.push({
+        eventType: 'LineAddedEvent',
+        payload: { lineId, sectionId: secId, text: line.text, orderIndex: lineOrder, userId: LOCAL_USER_ID },
+        source: 'import',
+      });
       next = applyAddLine(next, secId, lineId, line.text);
       for (const chord of line.chords) {
         const lineObj = next.sections.flatMap((s) => s.lines ?? []).find((l) => l.lineId === lineId);
         const resolved = tokenAtAbsoluteCharOffset(lineObj, chord.charOffset);
-        next = applyAddChord(next, lineId, crypto.randomUUID(), resolved?.tokenId ?? null, resolved?.charOffsetInToken ?? chord.charOffset, chord.symbol);
+        const chordId = crypto.randomUUID();
+        pending.push({
+          eventType: 'ChordAddedEvent',
+          payload: {
+            chordId,
+            lineId,
+            tokenId: resolved?.tokenId ?? null,
+            charOffset: resolved?.charOffsetInToken ?? chord.charOffset,
+            chordSymbol: chord.symbol,
+            userId: LOCAL_USER_ID,
+          },
+          source: 'import',
+        });
+        next = applyAddChord(next, lineId, chordId, resolved?.tokenId ?? null, resolved?.charOffsetInToken ?? chord.charOffset, chord.symbol);
       }
     }
     void commands;
-    void results;
-    saveSongDetail({ ...next, lastEventSequence: 1 });
+    const appended = await appendLocalEvents(song.songId, pending);
+    saveSongDetail({ ...next, lastEventSequence: appended.length ? appended[appended.length - 1]!.sequenceNumber : 0 });
     return { songId: song.songId };
   },
 
@@ -406,6 +689,13 @@ export const songApi = {
       updatedAt: now,
     };
     saveMetadataItems(songId, [...items, item]);
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'WorkMetadataItemAddedEvent',
+        payload: { songId, itemId: item.itemId, name: item.name, value: item.value, showOnTimeline: item.showOnTimeline, userId: LOCAL_USER_ID },
+        source: 'typed',
+      },
+    ]);
     return { itemId: item.itemId };
   },
   editMetadataItem: async (
@@ -413,6 +703,7 @@ export const songApi = {
     itemId: string,
     payload: { name?: string; value?: string; showOnTimeline?: boolean }
   ): Promise<void> => {
+    const prev = getMetadataItems(songId).find((it) => it.itemId === itemId);
     const items = getMetadataItems(songId).map((it) =>
       it.itemId === itemId
         ? {
@@ -425,6 +716,25 @@ export const songApi = {
         : it
     );
     saveMetadataItems(songId, items);
+    const next = items.find((it) => it.itemId === itemId);
+    if (next) {
+      await appendLocalEvents(songId, [
+        {
+          eventType: 'WorkMetadataItemEditedEvent',
+          payload: {
+            songId,
+            itemId,
+            previousName: prev?.name ?? '',
+            previousValue: prev?.value ?? '',
+            name: next.name,
+            value: next.value,
+            showOnTimeline: next.showOnTimeline,
+            userId: LOCAL_USER_ID,
+          },
+          source: 'typed',
+        },
+      ]);
+    }
   },
   archiveMetadataItem: async (songId: string, itemId: string): Promise<void> => {
     saveMetadataItems(
@@ -433,12 +743,18 @@ export const songApi = {
         it.itemId === itemId ? { ...it, archivedAt: new Date().toISOString() } : it
       )
     );
+    await appendLocalEvents(songId, [
+      { eventType: 'WorkMetadataItemArchivedEvent', payload: { songId, itemId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
   },
   unarchiveMetadataItem: async (songId: string, itemId: string): Promise<void> => {
     saveMetadataItems(
       songId,
       getMetadataItems(songId).map((it) => (it.itemId === itemId ? { ...it, archivedAt: null } : it))
     );
+    await appendLocalEvents(songId, [
+      { eventType: 'WorkMetadataItemUnarchivedEvent', payload: { songId, itemId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
   },
 
   /* notes */
@@ -462,6 +778,13 @@ export const songApi = {
       archivedAt: null,
     };
     saveNotes(songId, [...getLocalNotes(songId), note]);
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'NoteAddedEvent',
+        payload: { songId, noteId: note.noteId, artifactId: note.artifactId, title: note.title, userId: LOCAL_USER_ID },
+        source: 'typed',
+      },
+    ]);
     return { noteId: note.noteId };
   },
   editNote: async (songId: string, noteId: string, payload: { title?: string; body?: string }): Promise<Note> => {
@@ -476,6 +799,13 @@ export const songApi = {
     };
     notes[idx] = updated;
     saveNotes(songId, notes);
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'NoteEditedEvent',
+        payload: { songId, noteId, previousArtifactId: updated.artifactId, artifactId: updated.artifactId, title: updated.title, userId: LOCAL_USER_ID },
+        source: 'typed',
+      },
+    ]);
     return updated;
   },
   archiveNote: async (songId: string, noteId: string): Promise<void> => {
@@ -483,12 +813,18 @@ export const songApi = {
       songId,
       getLocalNotes(songId).map((n) => (n.noteId === noteId ? { ...n, archivedAt: new Date().toISOString() } : n))
     );
+    await appendLocalEvents(songId, [
+      { eventType: 'NoteArchivedEvent', payload: { songId, noteId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
   },
   unarchiveNote: async (songId: string, noteId: string): Promise<void> => {
     saveNotes(
       songId,
       getLocalNotes(songId).map((n) => (n.noteId === noteId ? { ...n, archivedAt: null } : n))
     );
+    await appendLocalEvents(songId, [
+      { eventType: 'NoteUnarchivedEvent', payload: { songId, noteId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
   },
 
   /* videos / scans / recordings (audio milestones later) */
@@ -496,43 +832,73 @@ export const songApi = {
   unarchiveVideo: async (..._args: unknown[]): Promise<void> => {},
   archiveLyricsScan: async (..._args: unknown[]): Promise<void> => {},
   unarchiveLyricsScan: async (..._args: unknown[]): Promise<void> => {},
-  archiveRecording: async (_songId: string, recordingId: string): Promise<void> => {
+  archiveRecording: async (songId: string, recordingId: string): Promise<void> => {
     await setLocalRecordingArchived(recordingId, true);
+    await appendLocalEvents(songId, [
+      { eventType: 'RecordingArchivedEvent', payload: { songId, recordingId, userId: LOCAL_USER_ID }, source: 'audio-recorder' },
+    ]);
   },
-  unarchiveRecording: async (_songId: string, recordingId: string): Promise<void> => {
+  unarchiveRecording: async (songId: string, recordingId: string): Promise<void> => {
     await setLocalRecordingArchived(recordingId, false);
+    await appendLocalEvents(songId, [
+      { eventType: 'RecordingUnarchivedEvent', payload: { songId, recordingId, userId: LOCAL_USER_ID }, source: 'audio-recorder' },
+    ]);
   },
-  renameRecording: async (_songId: string, recordingId: string, label: string): Promise<void> => {
+  renameRecording: async (songId: string, recordingId: string, label: string): Promise<void> => {
+    const before = (await listLocalRecordings(songId)).find((r) => r.recordingId === recordingId);
     await renameLocalRecording(recordingId, label);
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'RecordingEditedEvent',
+        payload: {
+          songId,
+          recordingId,
+          previousArtifactId: before?.artifactId ?? '',
+          artifactId: before?.artifactId ?? '',
+          label,
+          userId: LOCAL_USER_ID,
+        },
+        source: 'audio-recorder',
+      },
+    ]);
   },
 
   /* individual song mutations */
-  createSong: async (): Promise<{ songId: string }> => ({ songId: createSongRecord().songId }),
+  createSong: async (): Promise<{ songId: string }> => {
+    const record = createSongRecord();
+    await appendLocalEvents(record.songId, [
+      { eventType: 'SongCreatedEvent', payload: { songId: record.songId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
+    return { songId: record.songId };
+  },
   setTitle: async (songId: string, title: string): Promise<void> => {
-    runBatch(songId, [{ type: 'SetTitle', payload: { title } }]);
+    await runBatch(songId, [{ type: 'SetTitle', payload: { title } }]);
   },
   addSection: async (songId: string, type: string, label: string): Promise<{ sectionId: string }> => {
     const sectionId = crypto.randomUUID();
-    const song = requireSong(songId);
-    saveSongDetail(applyAddSection(song, sectionId, type, label));
+    await runBatch(songId, [
+      { type: 'AddSection', payload: { sectionType: type, label }, clientGeneratedId: sectionId },
+    ]);
     return { sectionId };
   },
   editSection: async (songId: string, sectionId: string, type: string, label: string): Promise<void> => {
-    saveSongDetail(applyEditSection(requireSong(songId), sectionId, type, label));
+    await runBatch(songId, [{ type: 'EditSection', payload: { sectionId, sectionType: type, label } }]);
   },
   deleteSection: async (songId: string, sectionId: string): Promise<void> => {
-    saveSongDetail(applyArchiveSection(requireSong(songId), sectionId));
+    await runBatch(songId, [{ type: 'ArchiveSection', payload: { sectionId } }]);
   },
   addLine: async (songId: string, sectionId: string, text: string): Promise<{ lineId: string }> => {
     const lineId = crypto.randomUUID();
-    saveSongDetail(applyAddLine(requireSong(songId), sectionId, lineId, text));
+    await runBatch(songId, [
+      { type: 'AddLine', payload: { sectionId, text }, clientGeneratedId: lineId },
+    ]);
     return { lineId };
   },
   editLine: async (songId: string, lineId: string, text: string): Promise<void> => {
-    saveSongDetail(applyEditLine(requireSong(songId), lineId, text));
+    await runBatch(songId, [{ type: 'EditLine', payload: { lineId, text } }]);
   },
   deleteLine: async (songId: string, lineId: string): Promise<void> => {
-    saveSongDetail(applyArchiveLine(requireSong(songId), lineId));
+    await runBatch(songId, [{ type: 'ArchiveLine', payload: { lineId } }]);
   },
   addChord: async (
     songId: string,
@@ -542,29 +908,50 @@ export const songApi = {
     chordSymbol: string
   ): Promise<{ chordId: string }> => {
     const chordId = crypto.randomUUID();
-    saveSongDetail(applyAddChord(requireSong(songId), lineId, chordId, tokenId, charOffset, chordSymbol));
+    await runBatch(songId, [
+      { type: 'AddChord', payload: { lineId, tokenId, charOffset, chordSymbol }, clientGeneratedId: chordId },
+    ]);
     return { chordId };
   },
   editChord: async (songId: string, chordId: string, symbol: string): Promise<void> => {
-    saveSongDetail(applyEditChord(requireSong(songId), chordId, symbol));
+    await runBatch(songId, [{ type: 'EditChord', payload: { chordId, symbol } }]);
   },
   setChordVoicing: async (songId: string, chordId: string, voicingId: string | null): Promise<void> => {
-    saveSongDetail(applySetChordVoicing(requireSong(songId), chordId, voicingId));
+    await runBatch(songId, [{ type: 'SetChordVoicing', payload: { chordId, voicingId } }]);
   },
   moveChord: async (songId: string, chordId: string, tokenId: string, charOffset: number): Promise<void> => {
-    saveSongDetail(applyMoveChord(requireSong(songId), chordId, tokenId, charOffset));
+    const song = requireSong(songId);
+    const prevChord = song.sections
+      .flatMap((s) => s.lines ?? [])
+      .flatMap((l) => l.chords ?? [])
+      .find((c) => c.chordId === chordId);
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'ChordMovedEvent',
+        payload: { chordId, previousTokenId: prevChord?.tokenId ?? null, newTokenId: tokenId, newCharOffset: charOffset, userId: LOCAL_USER_ID },
+        source: 'typed',
+      },
+    ]);
+    saveSongDetail(applyMoveChord(song, chordId, tokenId, charOffset));
   },
   removeChord: async (songId: string, chordId: string): Promise<void> => {
-    saveSongDetail(applyRemoveChord(requireSong(songId), chordId));
+    await runBatch(songId, [{ type: 'RemoveChord', payload: { chordId } }]);
   },
   archiveSong: async (songId: string): Promise<void> => {
+    await appendLocalEvents(songId, [
+      { eventType: 'SongArchivedEvent', payload: { songId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
     saveSongDetail({ ...requireSong(songId), archived: true });
   },
   restoreSong: async (songId: string): Promise<void> => {
+    await appendLocalEvents(songId, [
+      { eventType: 'SongRestoredEvent', payload: { songId, userId: LOCAL_USER_ID }, source: 'system' },
+    ]);
     saveSongDetail({ ...requireSong(songId), archived: false });
   },
   deleteSong: async (songId: string): Promise<void> => {
     removeSongRecord(songId);
+    deleteLocalEventsForSong(songId);
     deleteLocalTrackLabProjectsForSong(songId);
     await deleteLocalRecordingsForSong(songId);
   },
@@ -581,7 +968,37 @@ export const songApi = {
     }
   ): Promise<{ recordingId: string }> => {
     requireSong(songId);
+    // Section recordings archive the previous primary; record that like the
+    // original backend does (archive event before the add event).
+    const replaced = options?.sectionId
+      ? (await listLocalRecordings(songId)).filter((r) => r.sectionId === options.sectionId && !r.archivedAt)
+      : [];
     const rec = await saveLocalRecording(songId, blob, options ?? {});
+    await appendLocalEvents(songId, [
+      ...replaced.map((r) => ({
+        eventType: 'RecordingArchivedEvent',
+        payload: { songId, recordingId: r.recordingId, userId: LOCAL_USER_ID },
+        source: 'audio-recorder',
+      })),
+      {
+        eventType: 'RecordingAddedEvent',
+        payload: {
+          songId,
+          recordingId: rec.recordingId,
+          artifactId: rec.artifactId,
+          contentHash: rec.contentHash ?? '',
+          mimeType: rec.mimeType,
+          sizeBytes: rec.sizeBytes,
+          sectionId: rec.sectionId ?? null,
+          source: 'recorded',
+          trackIndex: rec.trackIndex,
+          label: rec.label ?? null,
+          durationSeconds: rec.durationSeconds ?? null,
+          userId: LOCAL_USER_ID,
+        },
+        source: 'audio-recorder',
+      },
+    ]);
     return { recordingId: rec.recordingId };
   },
   uploadMixdown: async (
@@ -596,6 +1013,26 @@ export const songApi = {
       labelIsCustom: true,
       durationSeconds: options.durationSeconds,
     });
+    await appendLocalEvents(songId, [
+      {
+        eventType: 'RecordingAddedEvent',
+        payload: {
+          songId,
+          recordingId: rec.recordingId,
+          artifactId: rec.artifactId,
+          contentHash: rec.contentHash ?? '',
+          mimeType: rec.mimeType,
+          sizeBytes: rec.sizeBytes,
+          sectionId: null,
+          source: 'mixdown',
+          trackIndex: rec.trackIndex,
+          label: rec.label ?? null,
+          durationSeconds: rec.durationSeconds ?? null,
+          userId: LOCAL_USER_ID,
+        },
+        source: 'track-lab',
+      },
+    ]);
     return { recordingId: rec.recordingId };
   },
   getTrackLabProjects: async (songId: string): Promise<TrackLabProject[]> => {
@@ -632,30 +1069,84 @@ export const songApi = {
         archivedAt: null,
       };
     }
+    const pending: PendingEvent[] = [];
+    const newRecordingIds: string[] = [];
     for (const track of tracks) {
       if (!track.blob || track.blob.size === 0) continue;
       if (projectId) {
         // Backend parity: saving a new take on a track archives the previous active one.
+        const replaced = (await listLocalRecordings(songId)).find(
+          (r) => r.projectId === project.projectId && r.trackIndex === track.trackIndex && !r.archivedAt
+        );
         await archiveActiveProjectTrackRecording(project.projectId, track.trackIndex);
+        if (replaced) {
+          pending.push({
+            eventType: 'RecordingArchivedEvent',
+            payload: { songId, recordingId: replaced.recordingId, userId: LOCAL_USER_ID },
+            source: 'track-lab',
+          });
+        }
       }
-      await saveLocalRecording(songId, track.blob, {
+      const rec = await saveLocalRecording(songId, track.blob, {
         trackIndex: track.trackIndex,
         label: track.label ?? undefined,
         durationSeconds: track.durationSeconds ?? undefined,
         projectId: project.projectId,
       });
+      newRecordingIds.push(rec.recordingId);
+      pending.push({
+        eventType: 'RecordingAddedEvent',
+        payload: {
+          songId,
+          recordingId: rec.recordingId,
+          artifactId: rec.artifactId,
+          contentHash: rec.contentHash ?? '',
+          mimeType: rec.mimeType,
+          sizeBytes: rec.sizeBytes,
+          sectionId: null,
+          source: 'track_lab',
+          trackIndex: rec.trackIndex,
+          label: rec.label ?? null,
+          durationSeconds: rec.durationSeconds ?? null,
+          userId: LOCAL_USER_ID,
+        },
+        source: 'track-lab',
+      });
     }
     upsertLocalTrackLabProject({ ...project, name, projectData, updatedAt: now });
+    pending.push(
+      projectId
+        ? {
+            eventType: 'TrackLabProjectUpdatedEvent',
+            payload: { songId, projectId: project.projectId, name, projectData, newRecordingIds, userId: LOCAL_USER_ID },
+            source: 'track-lab',
+          }
+        : {
+            eventType: 'TrackLabProjectSavedEvent',
+            payload: { songId, projectId: project.projectId, name, projectData, recordingIds: newRecordingIds, userId: LOCAL_USER_ID },
+            source: 'track-lab',
+          }
+    );
+    await appendLocalEvents(songId, pending);
     return { projectId: project.projectId };
   },
   archiveTrackLabProject: async (songId: string, projectId: string): Promise<void> => {
     setLocalTrackLabProjectArchived(songId, projectId, true);
+    await appendLocalEvents(songId, [
+      { eventType: 'TrackLabProjectArchivedEvent', payload: { songId, projectId, userId: LOCAL_USER_ID }, source: 'track-lab' },
+    ]);
   },
   unarchiveTrackLabProject: async (songId: string, projectId: string): Promise<void> => {
     setLocalTrackLabProjectArchived(songId, projectId, false);
+    await appendLocalEvents(songId, [
+      { eventType: 'TrackLabProjectUnarchivedEvent', payload: { songId, projectId, userId: LOCAL_USER_ID }, source: 'track-lab' },
+    ]);
   },
   updateTrackLabProjectName: async (songId: string, projectId: string, name: string): Promise<void> => {
     renameLocalTrackLabProject(songId, projectId, name);
+    await appendLocalEvents(songId, [
+      { eventType: 'TrackLabProjectRenamedEvent', payload: { songId, projectId, name, userId: LOCAL_USER_ID }, source: 'track-lab' },
+    ]);
   },
 };
 

@@ -11,41 +11,18 @@ interface ExportPdfButtonProps {
   payload: CertificatePdfPayload | null;
 }
 
-function getAuthenticateUrl(certificateId: string): string {
-  if (typeof window === 'undefined') {
-    const base = process.env.NEXT_PUBLIC_APP_URL || '';
-    const path = `/authenticate/${encodeURIComponent(certificateId)}`;
-    return base ? `${base.replace(/\/$/, '')}${path}` : path;
-  }
-  const base = (process.env.NEXT_PUBLIC_APP_URL || window.location.origin).replace(/\/$/, '');
-  return `${base}/authenticate/${encodeURIComponent(certificateId)}`;
-}
-
-/** Export certificate as PDF (used by ExportPdfButton and TimelineBottomBar). */
+/** Export the song history as PDF (used by ExportPdfButton and TimelineBottomBar). */
 export async function exportCertificatePdf(payload: CertificatePdfPayload): Promise<void> {
-  const authenticateUrl = getAuthenticateUrl(payload.certificateId);
-  let qrDataUrl: string | undefined;
-  try {
-    const QRCode = await import('qrcode');
-    qrDataUrl = await QRCode.toDataURL(authenticateUrl, {
-      width: 256,
-      margin: 2,
-      color: { dark: '#f6992c', light: '#ffffff' },
-    });
-  } catch {
-    // PDF will still generate without QR
-  }
   const logoUrl =
     typeof window !== 'undefined'
       ? `${window.location.origin}/provenance-v2/logo/8thnote_cropped.png`
       : undefined;
-  const verifyUrl = getAuthenticateUrl(payload.certificateId);
-  const payloadWithQr = { ...payload, qrDataUrl, logoUrl, verifyUrl };
+  const payloadWithQr = { ...payload, logoUrl };
   const blob = await pdf(
     <CertificatePdfDocument payload={payloadWithQr} />
   ).toBlob();
   const url = URL.createObjectURL(blob);
-  const filename = `certificate-${sanitizeFilename(payload.songTitle)}-${payload.certificateId.slice(0, 8)}.pdf`;
+  const filename = `song-history-${sanitizeFilename(payload.songTitle)}-${payload.certificateId.slice(0, 8)}.pdf`;
   const a = document.createElement('a');
   a.href = url;
   a.download = filename;
