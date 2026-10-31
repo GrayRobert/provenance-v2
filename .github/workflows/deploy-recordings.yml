@@ -1,0 +1,28 @@
+name: Deploy recordings slice (root site + source overlay)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release assets
+        run: |
+          curl -fL -o /tmp/root-app.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/13-root-app.zip
+          curl -fL -o /tmp/source-app.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/13-source-app.zip
+      - name: Overlay app files onto repo root and source/ (sample assets already committed)
+        run: |
+          unzip -oq /tmp/root-app.zip -d .
+          unzip -oq /tmp/source-app.zip -d source
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Add local audio recordings: record/play per song and section, IndexedDB storage, backup v2 with audio" || echo "no changes"
+          git push
