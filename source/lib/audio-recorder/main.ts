@@ -1388,6 +1388,7 @@ export function mountAudioRecorder(
           <div class="flex flex-col gap-2">
             <span class="text-xs font-mono text-muted-foreground uppercase tracking-wider">Level meter</span>
             <div id="ar-input-modal-meter" class="flex gap-px h-4 w-full"></div>
+            <p id="ar-input-capture-info" class="text-xs text-muted-foreground"></p>
           </div>
         </fieldset>
         <fieldset class="flex flex-col gap-3 border border-border rounded-lg p-3">
@@ -1479,6 +1480,15 @@ export function mountAudioRecorder(
       const tracks = stream.getAudioTracks();
       const idx = Math.min(Math.max(0, channelIndex), tracks.length - 1);
       const track = tracks[idx];
+      /* Show the capture settings the OS actually granted: on iOS the system can override
+         requested constraints (AGC / echo cancellation / noise suppression), which changes
+         real mic gain. This line makes the applied processing visible instead of guessed. */
+      const infoEl = panel.querySelector('#ar-input-capture-info') as HTMLElement | null;
+      if (infoEl && track && typeof track.getSettings === 'function') {
+        const st = track.getSettings();
+        const onoff = (v: unknown) => (v === true ? 'on' : v === false ? 'off' : 'n/a');
+        infoEl.textContent = `Capture: ${st.sampleRate ?? '?'} Hz - auto gain ${onoff(st.autoGainControl)}, echo cancel ${onoff(st.echoCancellation)}, noise suppression ${onoff(st.noiseSuppression)}`;
+      }
       const streamToUse = track ? new MediaStream([track]) : stream;
       if (previewCtx) {
         if (previewSource) previewSource.disconnect();
@@ -1616,9 +1626,16 @@ export function mountAudioRecorder(
               _dbg(Date.now() - t0, 'loadDevicesAndPreview:reusedStream', 'G');
             } else {
               const preferredId = engine.getState().inputDeviceId;
+              /* Same processing constraints as the recording path, so this meter reads
+                 the same raw level that recording will capture. */
+              const captureConstraints = {
+                autoGainControl: false,
+                echoCancellation: false,
+                noiseSuppression: false,
+              };
               const constraints: MediaStreamConstraints = preferredId
-                ? { audio: { deviceId: { exact: preferredId } } }
-                : { audio: true };
+                ? { audio: { deviceId: { exact: preferredId }, ...captureConstraints } }
+                : { audio: captureConstraints };
               stream = await navigator.mediaDevices.getUserMedia(constraints).catch(() => navigator.mediaDevices.getUserMedia({ audio: true }));
               _dbg(Date.now() - t0, 'loadDevicesAndPreview:afterGetUserMedia', 'G');
             }
@@ -1697,7 +1714,9 @@ export function mountAudioRecorder(
         engine.setInputDevice(deviceId);
         stopPreview();
         try {
-          const c = deviceId ? { audio: { deviceId: { exact: deviceId } } } : { audio: true };
+          const c: MediaStreamConstraints = deviceId
+            ? { audio: { deviceId: { exact: deviceId }, autoGainControl: false, echoCancellation: false, noiseSuppression: false } }
+            : { audio: { autoGainControl: false, echoCancellation: false, noiseSuppression: false } };
           currentStream = await navigator.mediaDevices.getUserMedia(c);
           populateInputChannels(currentStream);
           const idx = Math.min(engine.getState().inputChannelIndex, currentStream.getAudioTracks().length - 1);

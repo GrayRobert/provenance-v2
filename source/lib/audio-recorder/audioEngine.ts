@@ -940,6 +940,24 @@ export function createAudioEngine() {
     inputGainNode.gain.value = state.inputGain / 100;
     source.connect(inputGainNode);
     inputGainNode.connect(analyser);
+    return attachRecorderToInputGraph(ctx);
+  }
+
+  /** Start the recorder on the already-live sustained input graph (stream kept from arm/monitoring). */
+  async function startRecordingWithReusedGraph(): Promise<number> {
+    const ctx = await ensureContextRunning();
+    if (ctx.state !== 'running') resumeContextOnNextGesture(ctx);
+    if (!inputGainNode || !analyser) {
+      // Defensive: graph vanished; fall back to a fresh stream.
+      const { streamForSource, fullStream } = await getStreamForRecording();
+      return startRecordingWithStream(streamForSource, fullStream);
+    }
+    return attachRecorderToInputGraph(ctx);
+  }
+
+  /** Attach record destination + MediaRecorder to inputGainNode and start recording. Returns ctx.currentTime when recorder started. */
+  function attachRecorderToInputGraph(ctx: AudioContext): number {
+    if (!inputGainNode) throw new Error('Input graph not ready');
     const recordDest = ctx.createMediaStreamDestination();
     inputGainNode.connect(recordDest);
     applyInputMonitoring();
@@ -1020,6 +1038,15 @@ export function createAudioEngine() {
   }
 
   async function startRecording(): Promise<number> {
+    /* Reuse the live sustained input (armed-track monitoring) when present: its stream was
+       negotiated while the device was idle, before any playback. Acquiring a fresh stream
+       mid-count-in (clicks already playing) makes iOS switch the audio session to duplex
+       voice processing, which ducks mic gain - the recorded audio itself comes out quiet.
+       Ownership of the graph passes to the recording session; stopRecording() tears it down. */
+    if (sustainedInputSource && mediaStream && mediaStream.active) {
+      sustainedInputSource = null;
+      return startRecordingWithReusedGraph();
+    }
     stopSustainedInputStream();
     const { streamForSource, fullStream } = await getStreamForRecording();
     return startRecordingWithStream(streamForSource, fullStream);
@@ -1242,8 +1269,8 @@ export function createAudioEngine() {
   }
 
   async function doCountIn(
-    streamPromise: Promise<{ streamForSource: MediaStream; fullStream: MediaStream }>,
-    callback: (stream: { streamForSource: MediaStream; fullStream: MediaStream }) => void | Promise<void>
+    streamPromise: Promise<{ streamForSource: MediaStream; fullStream: MediaStream } | undefined>,
+    callback: (stream: { streamForSource: MediaStream; fullStream: MediaStream } | undefined) => void | Promise<void>
   ) {
     await ensureContextRunning();
     const metroCtx = getMetronomeContext();
@@ -1332,7 +1359,13 @@ export function createAudioEngine() {
       timeUpdateRafId = requestAnimationFrame(updateTime);
     };
     if (state.countInEnabled) {
-      const streamPromise = getStreamForRecording();
+      /* Only pre-fetch a fresh stream when there is no live sustained input to reuse;
+         negotiating getUserMedia during count-in clicks is what flips iOS into duplex
+         voice processing and ducks the mic. */
+      const reuseSustained = Boolean(sustainedInputSource && mediaStream && mediaStream.active);
+      const streamPromise = reuseSustained
+        ? Promise.resolve(undefined)
+        : getStreamForRecording();
       doCountIn(streamPromise, (stream) => doRecord(stream));
     } else {
       doRecord();
