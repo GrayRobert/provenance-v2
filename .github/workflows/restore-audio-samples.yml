@@ -1,0 +1,63 @@
+name: Restore audio samples and prefix sample paths
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  restore-audio:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download audio sample assets from release
+        run: |
+          curl -fsSL -o /tmp/a.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/2-13-audio-samples-a.zip
+          curl -fsSL -o /tmp/b.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/3-13-audio-samples-b.zip
+          curl -fsSL -o /tmp/c.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/4-13-audio-samples-c.zip
+          wc -c /tmp/a.zip /tmp/b.zip /tmp/c.zip
+      - name: Unpack samples into site root and source/public
+        run: |
+          unzip -oq /tmp/a.zip -d .
+          unzip -oq /tmp/b.zip -d .
+          unzip -oq /tmp/c.zip -d .
+          mkdir -p source/public
+          for d in salamander felt-piano rhodes acc-guitar metronome; do
+            rm -rf "source/public/$d"
+            cp -r "$d" "source/public/$d"
+            echo "$d: $(ls $d | wc -l) files"
+          done
+      - name: Prefix sample paths with the Pages base path
+        run: |
+          python3 - <<'PYEOF'
+          import pathlib, re, sys
+          rx = re.compile(r'(["\'`}])/((?:salamander|felt-piano|rhodes|acc-guitar|metronome)/)')
+          exts = {'.js', '.mjs', '.ts', '.tsx', '.html'}
+          def texts():
+              for p in pathlib.Path('.').rglob('*'):
+                  if '.git' in p.parts or not p.is_file() or p.suffix not in exts:
+                      continue
+                  yield p
+          changed = []
+          for p in texts():
+              t = p.read_text(encoding='utf-8', errors='ignore')
+              n = rx.sub(lambda m: m.group(1) + '/provenance-v2/' + m.group(2), t)
+              if n != t:
+                  p.write_text(n, encoding='utf-8')
+                  changed.append(str(p))
+          print('patched files:')
+          print('\n'.join(changed))
+          leftover = [str(p) for p in texts() if rx.search(p.read_text(encoding='utf-8', errors='ignore'))]
+          if leftover:
+              print('STILL UNPATCHED: ' + ', '.join(leftover))
+              sys.exit(1)
+          print('no unprefixed sample refs remain')
+          PYEOF
+      - name: Commit and push
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Restore instrument audio samples and prefix sample paths with basePath'
+          git push
