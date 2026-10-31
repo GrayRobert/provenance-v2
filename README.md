@@ -16,7 +16,7 @@ I haven't written a single line of this project's code by hand. As a product des
 
 The original hosted version was developed using an agentic pipeline of Cursor, GitHub and Linear for project and feature tickets, with Vercel v0 for some UI components.
 
-Version 2 ports the app to a local, client-side model so the project can continue without ongoing backend hosting. That port was completed in a few hours through a conversation with [Instinct](https://instinct.com/).
+Version 2 ports the app to a local, client-side model so the project can continue without ongoing backend hosting. That port was completed in a few hours through a conversation with [Instinct](https://instinct.com/). 🤯
 
 ## Screenshots
 
