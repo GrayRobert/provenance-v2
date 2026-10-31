@@ -1033,6 +1033,9 @@ export function createAudioEngine() {
     }
     if (animFrameId) cancelAnimationFrame(animFrameId);
     stopMetronome();
+    /* Input stream is gone: reset the meter instead of freezing at the last ballistic reading. */
+    inputMeterBallistics.reset();
+    if (state.inputLevel !== 0) setState({ inputLevel: 0 });
   }
 
   async function startSustainedInputStream(): Promise<void> {
