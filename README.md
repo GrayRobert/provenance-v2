@@ -12,16 +12,16 @@ Provenance is a web app for writing songs: lyrics, chords, structure, and record
 
 ## Screenshots
 
-![Song editor with lyrics, chords and section structure](docs/screenshots/editor.png)
+![Song editor with lyrics, chords and section structure](https://github.com/user-attachments/assets/ec523241-4280-4db9-a8e9-9db800b810a2)
 **Song editor** - lyrics, chords, and section structure in one workspace
 
-![Track Lab with a recorded take](docs/screenshots/tracklab.png)
+![Track Lab with a recorded take](https://github.com/user-attachments/assets/70d7fbf3-1026-48ff-8851-010550041fdc)
 **Track Lab** - multitrack recording with per-track arming, count-in, live input meters, latency compensation, and mixdown
 
-![Song history timeline with integrity check](docs/screenshots/timeline.png)
+![Song history timeline with integrity check](https://github.com/user-attachments/assets/7a1fd137-50ab-43ac-a449-1f8ffe10be96)
 **Timeline** - per-song event history with the on-device hash-chain check and evidence coverage per element
 
-![Chord Explorer](docs/screenshots/chord-explorer.png)
+![Chord Explorer](https://github.com/user-attachments/assets/be198f76-34b8-45f9-935b-85a3f3f78206)
 **Chord Explorer** - keyboard and diatonic chord pads with instrument playback
 
 ## Features
