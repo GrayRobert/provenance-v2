@@ -1,0 +1,886 @@
+@import "tailwindcss";
+@import "./song-structure-plugin.css";
+
+/* Dark variant: app data-theme + local .dark subtree (Song Structure modal) */
+@custom-variant dark (&:where(html[data-theme="dark"], html[data-theme="dark"] *, .song-structure-plugin-root.dark, .song-structure-plugin-root.dark *));
+
+/* Light theme (default) – Chord Explorer off-white palette */
+:root {
+  /* Background = page surround; surface = main content/cards (swapped from original hierarchy) */
+  --background: #ebe8e4;   /* main page/surround */
+  --surface: #f8f6f2;      /* cards, nav, content panels – warmer off-white */
+  --card: #f8f6f2;        /* same as surface – Track Lab / components */
+  --secondary: #eeebe6;   /* secondary panels (ruler, muted UI) – slightly darker than surface */
+  --foreground: #1a1a1a;   /* text-primary */
+  --muted: #4a4a4e;        /* text-secondary – secondary text */
+  --border: #e5e2dd;       /* elevated/divider – soft warm grey, Chord Explorer bg-elevated */
+  --accent: #f6992c;
+  --accent-hover: #c47a1a;
+  --accent-dim: rgba(246, 153, 44, 0.4);
+  --primary: #f6992c;
+  --primary-foreground: #1a1a1a;
+  --destructive: #dc2626;
+  /* Audio recorder / DAW (Track Lab) */
+  --track-armed: #dc2626;
+  --track-solo: #eab308;
+  --track-mute: #f6992c;
+  --meter-green: #22c55e;
+  --meter-yellow: #eab308;
+  --meter-red: #dc2626;
+  /* Bottom bar – very subtle gradient (light) */
+  --bar-gradient-from: #f5f3f0;
+  --bar-gradient-to: #f8f6f2;
+  --bar-shadow-top: rgba(0, 0, 0, 0.06);
+}
+
+/* Dark theme – Chord Explorer orange accent, less blue */
+html[data-theme="dark"] {
+  --background: #12121a;   /* main page/surround */
+  --foreground: #f5f5f7;
+  --surface: #0a0a0f;      /* cards, nav, content panels */
+  --card: #0a0a0f;         /* same as surface – Track Lab / components */
+  --secondary: #16161d;    /* secondary panels (ruler, muted UI) */
+  --muted: #9898a8;
+  --border: rgba(255, 255, 255, 0.1);
+  --accent: #f6992c;
+  --accent-hover: #c47a1a;
+  --accent-dim: rgba(246, 153, 44, 0.4);
+  --primary: #f6992c;
+  --primary-foreground: #f5f5f7;
+  --destructive: #dc2626;
+  /* Audio recorder / DAW (Track Lab) */
+  --track-armed: #dc2626;
+  --track-solo: #eab308;
+  --track-mute: #f6992c;
+  --meter-green: #22c55e;
+  --meter-yellow: #eab308;
+  --meter-red: #dc2626;
+  /* Bottom bar – solid black (dark) */
+  --bar-gradient-from: #000000;
+  --bar-gradient-to: #000000;
+  --bar-shadow-top: rgba(0, 0, 0, 0.35);
+}
+
+/* Landing page (v0) – dark theme scoped so rest of app unchanged */
+.landing-theme {
+  --background: #0d0f14;
+  --foreground: #e8e6e3;
+  --card: #14161d;
+  --card-foreground: #e8e6e3;
+  --popover: #14161d;
+  --popover-foreground: #e8e6e3;
+  --primary: #f6992c;
+  --primary-foreground: #0d0f14;
+  --secondary: #1c1f28;
+  --secondary-foreground: #e8e6e3;
+  --muted: #1c1f28;
+  --muted-foreground: #8b8d93;
+  --accent: #f6992c;
+  --accent-foreground: #0d0f14;
+  --destructive: #ef4444;
+  --destructive-foreground: #fecaca;
+  --border: #2a2d38;
+  --input: #2a2d38;
+  --ring: #f6992c;
+  --radius: 0.625rem;
+  --surface: #14161d;
+}
+
+/* Landing page: style containment per section (layout containment removed — it
+   breaks intrinsic sizing of grid items that rely on 1fr tracks inside flex
+   shrink-0 wrappers, causing 0×0 collapsed cells) */
+.landing-theme section {
+  contain: style;
+}
+
+/* Disable expensive decorative grid patterns on mobile to improve paint performance */
+@media (max-width: 767px) {
+  .landing-theme [class*="bg-[linear-gradient"] {
+    background-image: none !important;
+  }
+}
+
+/* Bottom bar (Songs list + Song editor) – solid color (light: very subtle gradient; dark: black) */
+.nav-bottom-bar {
+  background: linear-gradient(to top, var(--bar-gradient-from), var(--bar-gradient-to));
+  box-shadow: 0 -4px 12px var(--bar-shadow-top);
+}
+
+/* Hide visible scrollbars app-wide (keep scroll behaviour) */
+[class*="overflow-y-auto"]::-webkit-scrollbar,
+[class*="overflow-x-auto"]::-webkit-scrollbar,
+[class*="overflow-y-scroll"]::-webkit-scrollbar,
+[class*="overflow-x-scroll"]::-webkit-scrollbar,
+[class*="overflow-auto"]::-webkit-scrollbar {
+  display: none;
+}
+[class*="overflow-y-auto"],
+[class*="overflow-x-auto"],
+[class*="overflow-y-scroll"],
+[class*="overflow-x-scroll"],
+[class*="overflow-auto"] {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+/* Piano chord diagram – light (default), warm off-white to match app */
+:root {
+  --piano-body: #e8e5e0;   /* Chord Explorer bg-card – warm off-white */
+  --piano-stroke: #2a2a35;
+  --piano-white-inactive-0: #e5e2dd;
+  --piano-white-inactive-10: #ebe8e4;
+  --piano-white-inactive-50: #f5f3f0;
+  --piano-white-inactive-100: #e8e5e0;
+  --piano-white-active-0: #5b9cf0;
+  --piano-white-active-50: #4da3e0;
+  --piano-white-active-100: #3b82f6;
+  --piano-black-inactive-0: #1a1a24;
+  --piano-black-inactive-100: #1f1f28;
+  --piano-black-active-0: #3a7ca5;
+  --piano-black-active-100: #4da3e0;
+  --piano-voicing-text: #6a6a70;
+  --piano-c-label: #4a4a4e;
+  --piano-chord-name: #1a1a1a;
+}
+
+/* Dark theme: piano keys stay white/black (like light mode) so they're visible; only selected keys use accent */
+html[data-theme="dark"] {
+  --piano-body: #e8e5e0;
+  --piano-stroke: #2a2a35;
+  --piano-white-inactive-0: #e5e2dd;
+  --piano-white-inactive-10: #ebe8e4;
+  --piano-white-inactive-50: #f5f3f0;
+  --piano-white-inactive-100: #e8e5e0;
+  --piano-white-active-0: #f6992c;
+  --piano-white-active-50: #e08a1e;
+  --piano-white-active-100: #c47a1a;
+  --piano-black-inactive-0: #1a1a24;
+  --piano-black-inactive-100: #1f1f28;
+  --piano-black-active-0: #e08a1e;
+  --piano-black-active-100: #f6992c;
+  --piano-voicing-text: #6a6a70;
+  --piano-c-label: #4a4a4e;
+  --piano-chord-name: #1a1a1a;
+}
+
+/* Piano chord diagram – chord name text uses theme color */
+.piano-chord-diagram .piano-chord-name {
+  color: var(--piano-chord-name);
+}
+
+/* Piano chord diagram – scrollable on mobile when diagram overflows */
+.piano-chord-diagram-scroll {
+  min-width: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Notes modal – Quill editor fills height and matches app theme */
+.notes-quill-wrapper {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.notes-quill-wrapper .quill {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.notes-quill-wrapper .ql-container {
+  flex: 1;
+  min-height: 200px;
+  border-color: var(--border);
+  font-size: 1rem;
+}
+.notes-quill-wrapper .ql-editor {
+  min-height: 200px;
+}
+.notes-quill-wrapper .ql-toolbar {
+  border-color: var(--border);
+  background: var(--surface);
+}
+/* Quill toolbar – visible default state so buttons look interactive, not disabled */
+.notes-quill-wrapper .ql-toolbar .ql-stroke {
+  stroke: var(--muted);
+}
+.notes-quill-wrapper .ql-toolbar .ql-fill {
+  fill: var(--muted);
+}
+.notes-quill-wrapper .ql-toolbar button:hover .ql-stroke,
+.notes-quill-wrapper .ql-toolbar .ql-picker-label:hover .ql-stroke {
+  stroke: var(--accent);
+}
+.notes-quill-wrapper .ql-toolbar button:hover .ql-fill,
+.notes-quill-wrapper .ql-toolbar .ql-picker-label:hover .ql-fill {
+  fill: var(--accent);
+}
+.notes-quill-wrapper .ql-toolbar .ql-picker-label {
+  color: var(--foreground);
+}
+.notes-quill-wrapper .ql-toolbar .ql-picker-label.ql-active .ql-stroke,
+.notes-quill-wrapper .ql-toolbar button.ql-active .ql-stroke {
+  stroke: var(--accent);
+}
+.notes-quill-wrapper .ql-toolbar .ql-picker-label.ql-active .ql-fill,
+.notes-quill-wrapper .ql-toolbar button.ql-active .ql-fill {
+  fill: var(--accent);
+}
+.notes-quill-wrapper .ql-editor {
+  background: var(--surface);
+  color: var(--foreground);
+}
+/* Quill dark theme overrides when modal has data-theme="dark" */
+[data-theme="dark"] .notes-quill-wrapper .ql-toolbar {
+  background: var(--surface);
+}
+[data-theme="dark"] .notes-quill-wrapper .ql-container {
+  border-color: var(--border);
+}
+[data-theme="dark"] .notes-quill-wrapper .ql-editor {
+  background: var(--surface);
+  color: var(--foreground);
+}
+[data-theme="dark"] .notes-quill-wrapper .ql-toolbar .ql-stroke {
+  stroke: var(--muted);
+}
+[data-theme="dark"] .notes-quill-wrapper .ql-toolbar .ql-fill {
+  fill: var(--muted);
+}
+[data-theme="dark"] .notes-quill-wrapper .ql-toolbar .ql-picker-label {
+  color: var(--foreground);
+}
+
+/* Chord Builder – plugin theme (overrides for modal subtree) */
+.chord-voicing-selection[data-theme="light"] {
+  --background: #ebe8e4;
+  --surface: #f8f6f2;
+  --card: #f8f6f2;
+  --secondary: #eeebe6;
+  --foreground: #1a1a1a;
+  --muted: #4a4a4e;
+  --border: #e5e2dd;
+}
+.chord-voicing-selection[data-theme="dark"] {
+  --background: #12121a;
+  --surface: #0a0a0f;
+  --card: #0a0a0f;
+  --secondary: #16161d;
+  --foreground: #f5f5f7;
+  --muted: #9898a8;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+/* Audio Recorder (Track Lab) – plugin theme (fully scoped so plugin theme can differ from app theme) */
+.audio-recorder-modal[data-theme="light"] {
+  --background: #ebe8e4;
+  --surface: #f8f6f2;
+  --card: #f8f6f2;
+  --secondary: #eeebe6;
+  --foreground: #1a1a1a;
+  --muted: #4a4a4e;
+  --border: #e5e2dd;
+}
+.audio-recorder-modal[data-theme="dark"] {
+  --background: #12121a;
+  --surface: #0a0a0f;
+  --card: #0a0a0f;
+  --secondary: #16161d;
+  --foreground: #f5f5f7;
+  --muted: #9898a8;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+/* Track Lab overlays (Settings, Latency calibration) – portaled to body, need full theme scope + isolation from app */
+.ar-overlay-theme-host[data-theme="light"] {
+  color-scheme: light;
+  --background: #ebe8e4;
+  --surface: #f8f6f2;
+  --card: #f8f6f2;
+  --secondary: #eeebe6;
+  --foreground: #1a1a1a;
+  --muted: #4a4a4e;
+  --muted-foreground: #4a4a4e;
+  --border: #e5e2dd;
+}
+.ar-overlay-theme-host[data-theme="light"] * {
+  --background: #ebe8e4;
+  --surface: #f8f6f2;
+  --card: #f8f6f2;
+  --secondary: #eeebe6;
+  --foreground: #1a1a1a;
+  --muted: #4a4a4e;
+  --muted-foreground: #4a4a4e;
+  --border: #e5e2dd;
+}
+.ar-overlay-theme-host[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #12121a;
+  --surface: #0a0a0f;
+  --card: #0a0a0f;
+  --secondary: #16161d;
+  --foreground: #f5f5f7;
+  --muted: #9898a8;
+  --muted-foreground: #9898a8;
+  --border: rgba(255, 255, 255, 0.1);
+}
+.ar-overlay-theme-host[data-theme="dark"] * {
+  --background: #12121a;
+  --surface: #0a0a0f;
+  --card: #0a0a0f;
+  --secondary: #16161d;
+  --foreground: #f5f5f7;
+  --muted: #9898a8;
+  --muted-foreground: #9898a8;
+  --border: rgba(255, 255, 255, 0.1);
+}
+
+/* Guitar chord diagram – warm off-white in light; invert in dark */
+.chord-diagram-guitar {
+  background: var(--background);
+}
+html[data-theme="dark"] .chord-diagram-guitar {
+  filter: invert(1) hue-rotate(180deg);
+  background: white;
+}
+/* Chord Builder: use plugin theme, not app theme */
+.chord-voicing-selection[data-theme="light"] .chord-diagram-guitar {
+  filter: none;
+  background: var(--background);
+}
+.chord-voicing-selection[data-theme="dark"] .chord-diagram-guitar {
+  filter: invert(1) hue-rotate(180deg);
+  background: white;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-dim: var(--accent-dim);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Guitar tab modal: focusable fretboard wrapper (tabIndex) for arrow keys.
+ * Theme / Tailwind may apply an accent outline on :focus-visible; per-cell ring is custom. */
+.guitar-tab-fretboard-keyboard-root:focus,
+.guitar-tab-fretboard-keyboard-root:focus-visible,
+.guitar-tab-fretboard-keyboard-root:-moz-focusring {
+  outline: none !important;
+  outline-width: 0 !important;
+  outline-style: none !important;
+  outline-color: transparent !important;
+  box-shadow: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Clerk auth (SignIn/SignUp) – inherit theme for light/dark readability */
+.cl-card,
+.cl-cardBox {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+}
+.cl-headerTitle,
+.cl-headerSubtitle,
+.cl-formFieldLabel {
+  color: var(--foreground) !important;
+}
+.cl-formFieldInput {
+  background-color: var(--background) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+/* OTP/verification code fields – visible in dark mode (digits were black-on-black) */
+.cl-otpCodeFieldInput {
+  background-color: var(--secondary) !important;
+  border: 1px solid var(--border) !important;
+}
+.cl-otpCodeFieldInput input,
+.cl-otpCodeFieldInput [data-slot='input-otp-slot'],
+.cl-card [data-slot='input-otp-slot'] {
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+  -webkit-text-fill-color: var(--foreground) !important;
+  caret-color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+/* Force light text in dark mode (Clerk OTP may not inherit our variables).
+ * OTP uses slot divs that display each digit; the actual input can show a duplicate.
+ * Style both so digits are visible; slot content was rendering black-on-dark. */
+html[data-theme='dark'] .cl-card [data-slot='input-otp-slot'],
+html[data-theme='dark'] .cl-otpCodeFieldInput [data-slot='input-otp-slot'],
+html[data-theme='dark'] .cl-otpCodeFieldInput input,
+html[data-theme='dark'] .cl-card .cl-otpCodeFieldInput input,
+html[data-theme='dark'] .cl-card [class*='otp'] input,
+html[data-theme='dark'] .cl-card [class*='Otp'] input {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+  caret-color: transparent !important;
+}
+/* Slot divs that show each digit in the box – force digit text to white (avoids black-on-dark) */
+html[data-theme='dark'] .cl-card [data-slot='input-otp-slot'],
+html[data-theme='dark'] .cl-card [data-slot='input-otp-slot'] *,
+html[data-theme='dark'] .cl-otpCodeFieldInput [data-slot='input-otp-slot'],
+html[data-theme='dark'] .cl-otpCodeFieldInput [data-slot='input-otp-slot'] *,
+html[data-theme='dark'] [data-slot='input-otp-slot'],
+html[data-theme='dark'] [data-slot='input-otp-slot'] * {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+}
+/* Hide the overlay input’s text so only the slot digits show (removes duplicate white layer) */
+html[data-theme='dark'] .cl-otpCodeFieldInput input,
+html[data-theme='dark'] .cl-card .cl-otpCodeFieldInput input,
+html[data-theme='dark'] [data-slot='input-otp'] input {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: transparent !important;
+}
+.cl-formFieldInput::placeholder {
+  color: var(--muted) !important;
+}
+/* Dark theme: force light placeholder and input text (Clerk can render dark-on-dark otherwise) */
+html[data-theme='dark'] .cl-formFieldInput,
+html[data-theme='dark'] .cl-formFieldInput::placeholder {
+  color: #f5f5f7 !important;
+}
+html[data-theme='dark'] .cl-formFieldInput::placeholder {
+  opacity: 0.85;
+}
+/* Catch-all: every input and text display in Clerk card – white text in dark mode (OTP digits, email, etc.) */
+html[data-theme='dark'] #provenance-login .cl-card input,
+html[data-theme='dark'] #provenance-register .cl-card input,
+html[data-theme='dark'] .cl-card input {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+}
+/* Email/identity preview text (e.g. "guitar123@gmail.com" on verification step) */
+html[data-theme='dark'] #provenance-login .cl-card .cl-identityPreviewText,
+html[data-theme='dark'] #provenance-register .cl-card .cl-identityPreviewText,
+html[data-theme='dark'] .cl-card .cl-identityPreviewText,
+html[data-theme='dark'] .cl-identityPreviewText,
+html[data-theme='dark'] #provenance-login .cl-card [class*='identityPreview'],
+html[data-theme='dark'] #provenance-register .cl-card [class*='identityPreview'],
+html[data-theme='dark'] .cl-card [class*='identityPreview'] {
+  color: #f5f5f7 !important;
+}
+/* Ensure any input showing the email (readonly) also has light text */
+html[data-theme='dark'] #provenance-login .cl-card input[readonly],
+html[data-theme='dark'] #provenance-register .cl-card input[readonly] {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+}
+/* OTP: force entire container and all descendants to white (slot digits were still dark) */
+html[data-theme='dark'] #provenance-login .cl-card .cl-otpCodeFieldInput,
+html[data-theme='dark'] #provenance-login .cl-card .cl-otpCodeFieldInput *,
+html[data-theme='dark'] #provenance-register .cl-card .cl-otpCodeFieldInput,
+html[data-theme='dark'] #provenance-register .cl-card .cl-otpCodeFieldInput *,
+html[data-theme='dark'] #provenance-login [data-provenance-otp],
+html[data-theme='dark'] #provenance-login [data-provenance-otp] *,
+html[data-theme='dark'] #provenance-register [data-provenance-otp],
+html[data-theme='dark'] #provenance-register [data-provenance-otp] * {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+}
+/* CSS-only fallback: when card contains verification code input, force all content and slot digits to white */
+html[data-theme='dark'] #provenance-login .cl-card:has(input[placeholder*="verification" i]) *,
+html[data-theme='dark'] #provenance-login .cl-card:has(input[aria-label*="verification" i]) * {
+  color: #f5f5f7 !important;
+  -webkit-text-fill-color: #f5f5f7 !important;
+}
+html[data-theme='dark'] #provenance-login .cl-card:has(input[placeholder*="verification" i]) input,
+html[data-theme='dark'] #provenance-login .cl-card:has(input[aria-label*="verification" i]) input {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: transparent !important;
+}
+/* OTP overlay input: hide typed text so only slot digits show (after catch-all so this wins) */
+html[data-theme='dark'] #provenance-login .cl-card .cl-otpCodeFieldInput input,
+html[data-theme='dark'] #provenance-register .cl-card .cl-otpCodeFieldInput input,
+html[data-theme='dark'] .cl-otpCodeFieldInput input,
+html[data-theme='dark'] .cl-card .cl-otpCodeFieldInput input,
+html[data-theme='dark'] [data-slot='input-otp'] input,
+html[data-theme='dark'] #provenance-login [data-provenance-otp] input,
+html[data-theme='dark'] #provenance-register [data-provenance-otp] input {
+  color: transparent !important;
+  -webkit-text-fill-color: transparent !important;
+  caret-color: transparent !important;
+}
+.cl-footerActionLink,
+.cl-formFieldAction {
+  color: var(--accent) !important;
+}
+.cl-footerActionLink:hover,
+.cl-formFieldAction:hover {
+  color: var(--accent-hover) !important;
+}
+.cl-dividerLine {
+  background-color: var(--border) !important;
+}
+.cl-dividerText {
+  color: var(--muted) !important;
+}
+/* "Secured by Clerk" and other card footer text – readable in dark theme */
+.cl-formFooter,
+.cl-cardFooter {
+  color: var(--muted) !important;
+}
+html[data-theme='dark'] .cl-formFooter,
+html[data-theme='dark'] .cl-cardFooter {
+  color: #9898a8 !important;
+}
+/* "Don't have an account?" – in dark theme use off-white so it's clearly visible beside Sign up */
+.cl-footerAction,
+.cl-card .cl-footerAction {
+  color: var(--muted) !important;
+}
+/* Override --muted on login/register pages in dark theme so all muted text (incl. "Don't have an account?") is off-white */
+html[data-theme='dark'] #provenance-login,
+html[data-theme='dark'] #provenance-register {
+  --muted: #e8e6e3;
+}
+html[data-theme='dark'] #provenance-login .cl-card,
+html[data-theme='dark'] #provenance-register .cl-card,
+html[data-theme='dark'] .cl-card {
+  --muted: #e8e6e3;
+}
+html[data-theme='dark'] .cl-footerAction,
+html[data-theme='dark'] #provenance-login .cl-card .cl-footerAction,
+html[data-theme='dark'] #provenance-register .cl-card .cl-footerAction,
+html[data-theme='dark'] #provenance-login .cl-card [class*='footer'],
+html[data-theme='dark'] #provenance-register .cl-card [class*='footer'] {
+  color: #e8e6e3 !important;
+}
+/* Fallback: row that holds "Don't have an account? Sign up" – off-white; link stays orange via .cl-footerActionLink */
+html[data-theme='dark'] #provenance-login .cl-card form > div:has(.cl-footerActionLink),
+html[data-theme='dark'] #provenance-register .cl-card form > div:has(.cl-footerActionLink),
+html[data-theme='dark'] #provenance-login .cl-card form:has(.cl-footerActionLink) > div,
+html[data-theme='dark'] #provenance-register .cl-card form:has(.cl-footerActionLink) > div {
+  color: #e8e6e3 !important;
+}
+/* Script-marked footer line ("Don't have an account? Sign up") – off-white in dark theme */
+html[data-theme='dark'] #provenance-login [data-provenance-footer-line],
+html[data-theme='dark'] #provenance-register [data-provenance-footer-line],
+html[data-theme='dark'] #provenance-login [data-provenance-footer-line] *:not(a):not(.cl-footerActionLink),
+html[data-theme='dark'] #provenance-register [data-provenance-footer-line] *:not(a):not(.cl-footerActionLink) {
+  color: #e8e6e3 !important;
+}
+/* Structural fallback: last block in Clerk form often holds "Don't have an account? Sign up" */
+html[data-theme='dark'] #provenance-login .cl-card form > div:last-of-type,
+html[data-theme='dark'] #provenance-register .cl-card form > div:last-of-type {
+  color: #e8e6e3 !important;
+}
+html[data-theme='dark'] #provenance-login .cl-card form > div:last-of-type *:not(a),
+html[data-theme='dark'] #provenance-register .cl-card form > div:last-of-type *:not(a) {
+  color: #e8e6e3 !important;
+}
+/* Card footer row containing "Don't have an account? Sign up" – target div that has the register link */
+html[data-theme='dark'] #provenance-login .cl-card form div:has(a[href*='register']),
+html[data-theme='dark'] #provenance-register .cl-card form div:has(a[href*='register']) {
+  color: #e8e6e3 !important;
+  -webkit-text-fill-color: #e8e6e3 !important;
+}
+html[data-theme='dark'] #provenance-login .cl-card form div:has(a[href*='register']) *:not(a),
+html[data-theme='dark'] #provenance-register .cl-card form div:has(a[href*='register']) *:not(a) {
+  color: #e8e6e3 !important;
+  -webkit-text-fill-color: #e8e6e3 !important;
+}
+/* JS sets data-provenance-footer-light on footer row – force off-white */
+[data-provenance-footer-light],
+[data-provenance-footer-light] *:not(a) {
+  color: #e8e6e3 !important;
+  -webkit-text-fill-color: #e8e6e3 !important;
+}
+/* Max specificity override for Clerk footer "Don't have an account?" in dark theme */
+html[data-theme='dark'] #provenance-login .cl-footerAction,
+html[data-theme='dark'] #provenance-login .cl-footerAction *:not(a),
+html[data-theme='dark'] #provenance-register .cl-footerAction,
+html[data-theme='dark'] #provenance-register .cl-footerAction *:not(a),
+html[data-theme='dark'] body .cl-footerAction,
+html[data-theme='dark'] body .cl-footerAction *:not(a) {
+  color: #e8e6e3 !important;
+  -webkit-text-fill-color: #e8e6e3 !important;
+}
+.cl-socialButtonsBlockButton {
+  background-color: var(--surface) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+/* Primary action (Continue) – primary orange, slightly darker orange on hover (light and dark theme).
+ * #provenance-login / #provenance-register give high specificity to override Clerk-injected styles. */
+#provenance-login .cl-card .cl-formButtonPrimary,
+#provenance-login .cl-card .cl-buttonPrimary,
+#provenance-login .cl-card [class*='buttonPrimary'],
+#provenance-login .cl-card form button[type='submit'],
+#provenance-register .cl-card .cl-formButtonPrimary,
+#provenance-register .cl-card .cl-buttonPrimary,
+#provenance-register .cl-card [class*='buttonPrimary'],
+#provenance-register .cl-card form button[type='submit'],
+.cl-card .cl-formButtonPrimary,
+.cl-card .cl-buttonPrimary,
+.cl-card [class*='buttonPrimary'],
+.cl-card form button[type='submit'],
+.cl-formButtonPrimary,
+.cl-buttonPrimary,
+[class*='cl-buttonPrimary'] {
+  background-color: var(--accent, #f6992c) !important;
+  color: var(--primary-foreground, #1a1a1a) !important;
+  border: none !important;
+  border-radius: 0.375rem !important;
+  transition: background-color 0.15s ease !important;
+}
+html[data-theme='dark'] #provenance-login .cl-card .cl-formButtonPrimary,
+html[data-theme='dark'] #provenance-login .cl-card .cl-buttonPrimary,
+html[data-theme='dark'] #provenance-login .cl-card [class*='buttonPrimary'],
+html[data-theme='dark'] #provenance-login .cl-card form button[type='submit'],
+html[data-theme='dark'] #provenance-register .cl-card .cl-formButtonPrimary,
+html[data-theme='dark'] #provenance-register .cl-card .cl-buttonPrimary,
+html[data-theme='dark'] #provenance-register .cl-card [class*='buttonPrimary'],
+html[data-theme='dark'] #provenance-register .cl-card form button[type='submit'],
+html[data-theme='dark'] .cl-card .cl-formButtonPrimary,
+html[data-theme='dark'] .cl-card .cl-buttonPrimary,
+html[data-theme='dark'] .cl-card [class*='buttonPrimary'],
+html[data-theme='dark'] .cl-card form button[type='submit'],
+html[data-theme='dark'] .cl-formButtonPrimary,
+html[data-theme='dark'] .cl-buttonPrimary,
+html[data-theme='dark'] [class*='cl-buttonPrimary'] {
+  color: var(--primary-foreground, #f5f5f7) !important;
+}
+#provenance-login .cl-card .cl-formButtonPrimary:hover,
+#provenance-login .cl-card .cl-formButtonPrimary:focus,
+#provenance-login .cl-card .cl-formButtonPrimary:active,
+#provenance-login .cl-card .cl-buttonPrimary:hover,
+#provenance-login .cl-card .cl-buttonPrimary:focus,
+#provenance-login .cl-card .cl-buttonPrimary:active,
+#provenance-login .cl-card [class*='buttonPrimary']:hover,
+#provenance-login .cl-card [class*='buttonPrimary']:focus,
+#provenance-login .cl-card [class*='buttonPrimary']:active,
+#provenance-login .cl-card form button[type='submit']:hover,
+#provenance-login .cl-card form button[type='submit']:focus,
+#provenance-login .cl-card form button[type='submit']:active,
+#provenance-register .cl-card .cl-formButtonPrimary:hover,
+#provenance-register .cl-card .cl-formButtonPrimary:focus,
+#provenance-register .cl-card .cl-formButtonPrimary:active,
+#provenance-register .cl-card .cl-buttonPrimary:hover,
+#provenance-register .cl-card .cl-buttonPrimary:focus,
+#provenance-register .cl-card .cl-buttonPrimary:active,
+#provenance-register .cl-card [class*='buttonPrimary']:hover,
+#provenance-register .cl-card [class*='buttonPrimary']:focus,
+#provenance-register .cl-card [class*='buttonPrimary']:active,
+#provenance-register .cl-card form button[type='submit']:hover,
+#provenance-register .cl-card form button[type='submit']:focus,
+#provenance-register .cl-card form button[type='submit']:active,
+.cl-card .cl-formButtonPrimary:hover,
+.cl-card .cl-formButtonPrimary:focus,
+.cl-card .cl-formButtonPrimary:active,
+.cl-card .cl-buttonPrimary:hover,
+.cl-card .cl-buttonPrimary:focus,
+.cl-card .cl-buttonPrimary:active,
+.cl-card [class*='buttonPrimary']:hover,
+.cl-card [class*='buttonPrimary']:focus,
+.cl-card [class*='buttonPrimary']:active,
+.cl-card form button[type='submit']:hover,
+.cl-card form button[type='submit']:focus,
+.cl-card form button[type='submit']:active,
+.cl-formButtonPrimary:hover,
+.cl-formButtonPrimary:focus,
+.cl-formButtonPrimary:active,
+.cl-buttonPrimary:hover,
+.cl-buttonPrimary:focus,
+.cl-buttonPrimary:active,
+[class*='cl-buttonPrimary']:hover,
+[class*='cl-buttonPrimary']:focus,
+[class*='cl-buttonPrimary']:active {
+  background-color: var(--accent-hover, #c47a1a) !important;
+}
+
+/* Subscription / Pricing page – ensure plan cards and text are readable in light and dark */
+.pricing-page .pricing-table-wrapper {
+  color: var(--foreground);
+  width: 100%;
+}
+/* Single row of plans on desktop. Use .pricing-table-root (from Clerk appearance) so layout is reliable. */
+@media (min-width: 1024px) {
+  .pricing-page .pricing-table-wrapper {
+    width: 100% !important;
+  }
+  /* Root with 3 plan cards: 3-column grid so plans are horizontal */
+  .pricing-page .pricing-table-wrapper .pricing-table-root {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+  /* If root has a single inner wrapper, make that inner the grid so its 3 cards sit in one row */
+  .pricing-page .pricing-table-wrapper .pricing-table-root:has(> div:only-child) {
+    display: block !important;
+  }
+  .pricing-page .pricing-table-wrapper .pricing-table-root > div:only-child {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+  /* Fallback when rootBox class isn't applied: target first child of wrapper */
+  .pricing-page .pricing-table-wrapper > div:not(.pricing-table-root) {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+  .pricing-page .pricing-table-wrapper > div:not(.pricing-table-root):has(> div:only-child) {
+    display: block !important;
+  }
+  .pricing-page .pricing-table-wrapper > div:not(.pricing-table-root) > div:only-child {
+    display: grid !important;
+    grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+    gap: 1.5rem !important;
+    width: 100% !important;
+  }
+}
+.pricing-page .pricing-table-wrapper,
+.pricing-page .pricing-table-wrapper [class*='cl-'] {
+  color: var(--foreground) !important;
+}
+.pricing-page .pricing-table-wrapper [class*='card'],
+.pricing-page .pricing-table-wrapper [class*='Card'] {
+  background-color: var(--surface) !important;
+  border-color: var(--border) !important;
+  color: var(--foreground) !important;
+}
+.pricing-page .pricing-table-wrapper p,
+.pricing-page .pricing-table-wrapper span,
+.pricing-page .pricing-table-wrapper li,
+.pricing-page .pricing-table-wrapper label,
+.pricing-page .pricing-table-wrapper div,
+.pricing-page .pricing-table-wrapper h1,
+.pricing-page .pricing-table-wrapper h2,
+.pricing-page .pricing-table-wrapper h3 {
+  color: inherit;
+}
+.pricing-page .pricing-table-wrapper button:not([class*='primary']):not([role='switch']) {
+  background-color: var(--secondary) !important;
+  color: var(--foreground) !important;
+  border-color: var(--border) !important;
+}
+.pricing-page .pricing-table-wrapper button[class*='primary'],
+.pricing-page .pricing-table-wrapper a[class*='primary'],
+.pricing-page .pricing-table-wrapper .pricing-plan-card button[type='submit'],
+.pricing-page .pricing-table-wrapper .pricing-plan-card a[href*='checkout'],
+.pricing-page .pricing-table-wrapper .pricing-plan-card button:not([role='switch']):last-of-type {
+  background-color: var(--accent, #f6992c) !important;
+  color: var(--primary-foreground, #1a1a1a) !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: background-color 0.15s ease !important;
+}
+.pricing-page .pricing-table-wrapper button[class*='primary']:hover,
+.pricing-page .pricing-table-wrapper a[class*='primary']:hover,
+.pricing-page .pricing-table-wrapper .pricing-plan-card button[type='submit']:hover,
+.pricing-page .pricing-table-wrapper .pricing-plan-card a[href*='checkout']:hover,
+.pricing-page .pricing-table-wrapper .pricing-plan-card button:not([role='switch']):last-of-type:hover {
+  background-color: var(--accent-hover, #c47a1a) !important;
+}
+
+/* Dark theme: force all pricing table text to light – Clerk may use internal dark text */
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper,
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper * {
+  color: var(--foreground) !important;
+}
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper button[class*='primary'],
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper a[class*='primary'],
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper .pricing-plan-card button[type='submit'],
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper .pricing-plan-card a[href*='checkout'],
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper .pricing-plan-card button:not([role='switch']):last-of-type {
+  color: var(--primary-foreground, #f5f5f7) !important;
+}
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper [class*='card'],
+html[data-theme='dark'] .pricing-page .pricing-table-wrapper [class*='Card'] {
+  color: var(--foreground) !important;
+}
+/* Keep orange glow on plan cards in dark theme (don’t override gradient/border/shadow) */
+
+/* Active plan badge – green background (exclude switch thumb so toggle keeps shape) */
+.pricing-page .pricing-table-wrapper [class*='badge']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='Badge']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='tag']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='Tag']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='pill']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='Pill']:not([class*='thumb']):not([class*='Thumb']),
+.pricing-page .pricing-table-wrapper [class*='status']:not([class*='thumb']):not([class*='Thumb']) {
+  background-color: var(--meter-green) !important;
+  color: #fff !important;
+  border-color: transparent !important;
+}
+
+/* Hide pricing card footer only on homepage Get Started section (display-only); keep visible on /pricing for subscribing */
+#get-started .pricing-table-wrapper .cl-pricingTableCardFooter,
+#get-started .pricing-table-wrapper [class*='pricingTableCardFooter'] {
+  display: none !important;
+}
+
+/* Hide billing interval UI: toggle, "Billed annually", and fee period label ("Only billed monthly" etc.) */
+.pricing-page .pricing-table-wrapper [role='switch'],
+.pricing-page .pricing-table-wrapper *:has(> [role='switch']) {
+  display: none !important;
+}
+/* Hide period toggle / "gottle" on free plan (and any card) – Clerk may use PeriodToggle class */
+.pricing-page .pricing-table-wrapper [class*='pricingTableCardPeriodToggle'],
+.pricing-page .pricing-table-wrapper [class*='PeriodToggle'] {
+  display: none !important;
+}
+.pricing-page .pricing-table-wrapper .p-l-pricingTableCardFeePeriod,
+.pricing-page .pricing-table-wrapper [class*='pricingTableCardFeePeriod'],
+.pricing-page .pricing-table-wrapper [class*='billingInterval'],
+.pricing-page .pricing-table-wrapper [class*='billing-interval'],
+.pricing-page .pricing-table-wrapper [class*='interval'],
+.pricing-page .pricing-table-wrapper [class*='Interval'] {
+  display: none !important;
+}
+
+/* Print: hide chrome, preserve colours, A4 */
+.no-print {
+  display: block;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  main {
+    min-height: auto !important;
+  }
+
+  @page {
+    margin: 0.75in;
+    size: A4;
+  }
+}

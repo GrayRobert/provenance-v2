@@ -1,0 +1,8 @@
+:HL["/provenance-v2/_next/static/media/22a5144ee8d83bca-s.p.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/provenance-v2/_next/static/media/7d4881bb7e1bf84d-s.p.woff2","font",{"crossOrigin":"","type":"font/woff2"}]
+:HL["/provenance-v2/_next/static/css/547cd39eadedcdb5.css","style"]
+:HL["/provenance-v2/_next/static/css/3c9f17fb4e156016.css","style"]
+:HL["/provenance-v2/_next/static/css/35ec56c8eb93f935.css","style"]
+:HL["/provenance-v2/_next/static/css/31935fe5eb434806.css","style"]
+:HL["/provenance-v2/_next/static/css/b768cd3c08ab615c.css","style"]
+0:{"tree":{"name":"","param":null,"prefetchHints":16,"slots":{"children":{"name":"song","param":null,"prefetchHints":0,"slots":{"children":{"name":"__PAGE__","param":null,"prefetchHints":0,"slots":null}}}}},"staleTime":300,"buildId":"ILmbUk3dOt7MdXJowj84o"}
