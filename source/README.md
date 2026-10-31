@@ -5,7 +5,7 @@ Local-first songwriting app, built as a static Next.js site. Songs, history and 
 ## What works
 
 - Song editor: title/lyrics/chords, section structure, templates; per-song persistence across reloads
-- Recording: takes against a whole song or a single section (MediaRecorder; format negotiated per browser - WebM where supported, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), custom take names, playback, rename, archive/unarchive, download from Artifacts
+- Recording: takes against a whole song or a single section (MediaRecorder - WebM on desktop, MP4/AAC on iPhone - or upload MP3/M4A/AAC/OGG/WebM), custom take names, playback, rename, archive/unarchive, download from Artifacts
 - Track Lab: multitrack recorder with per-track arming, count-in, dB-scaled live input and master meters, latency compensation, and mixdown
 - Timeline: per-song event history with hash-chain integrity check, ownership split, and certificate PDF export
 - Songwriter Profile: songwriter name, optional legal name and contact/website, per-field switches for what appears on exports; each export embeds a snapshot of the profile at export time; profile is included in backups
