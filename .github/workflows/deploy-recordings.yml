@@ -15,19 +15,20 @@ jobs:
         run: |
           curl -fL -o /tmp/root-app.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/13-root-app.zip
           curl -fL -o /tmp/source-app.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/13-source-app.zip
-      - name: Overlay app files onto repo root and source/ (sample assets already committed)
+      - name: Overlay root app, rebuild source/ tree from zip, restore committed sample dirs
         run: |
           unzip -oq /tmp/root-app.zip -d .
-          
+          mkdir -p /tmp/samp
+          for d in acc-guitar felt-piano rhodes salamander; do if [ -d "source/public/$d" ]; then mv "source/public/$d" "/tmp/samp/$d"; fi; done
           rm -rf source
-
           mkdir -p source
-
           unzip -oq /tmp/source-app.zip -d source
+          mkdir -p source/public
+          for d in acc-guitar felt-piano rhodes salamander; do if [ -d "/tmp/samp/$d" ]; then mv "/tmp/samp/$d" "source/public/$d"; fi; done
       - name: Commit and push
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "Add local audio recordings: record/play per song and section, IndexedDB storage, backup v2 with audio" || echo "no changes"
+          git commit -m "Deploy: refresh root site app and replace source/ archive" || echo "no changes"
           git push
