@@ -1,0 +1,188 @@
+/**
+ * Chord Explorer Tour (React) - step popover and overlay
+ * Matches chord-explorer dark theme. Uses fallbacks when vars are not set (e.g. outside modal).
+ */
+.chord-explorer-tour {
+  --tour-bg-elevated: var(--bg-elevated, #1a1a26);
+  --tour-bg-hover: var(--bg-hover, #252535);
+  --tour-bg-primary: var(--bg-primary, #0a0a0f);
+  --tour-text-primary: var(--text-primary, #f5f5f7);
+  --tour-text-secondary: var(--text-secondary, #9898a8);
+  --tour-text-dim: var(--text-dim, #5a5a6e);
+  --tour-border-subtle: var(--border-subtle, 1px solid rgba(255, 255, 255, 0.06));
+  --tour-accent-warm: var(--accent-warm, #f6992c);
+  --tour-shadow: var(--shadow-button, 0 4px 20px rgba(0, 0, 0, 0.4));
+  --tour-font-mono: var(--font-mono), 'JetBrains Mono', 'Fira Code', monospace;
+  --tour-font-display: var(--font-display), Georgia, serif;
+
+  position: absolute;
+  inset: 0;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.chord-explorer-tour-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.35);
+  pointer-events: auto;
+  cursor: default;
+}
+
+/* More specific selector so .chord-explorer-modal * reset in styles.css doesn't override padding */
+.chord-explorer-modal .chord-explorer-tour .chord-explorer-tour-popover,
+.chord-explorer-tour-popover {
+  position: relative;
+  pointer-events: auto;
+  background: var(--tour-bg-elevated);
+  color: var(--tour-text-primary);
+  border: var(--tour-border-subtle);
+  font-family: var(--tour-font-mono);
+  max-width: min(360px, 90vw);
+  box-shadow: var(--tour-shadow);
+  border-radius: 8px;
+  padding: 16px;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* Arrow pointer at top center (hidden on welcome step) */
+.chord-explorer-tour-popover::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--tour-bg-elevated);
+  filter: drop-shadow(0 -1px 0 rgba(255, 255, 255, 0.06));
+}
+.chord-explorer-tour-popover-welcome.chord-explorer-tour-popover::before {
+  display: none;
+}
+
+.chord-explorer-tour-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tour-bg-hover);
+  border: var(--tour-border-subtle);
+  border-radius: 4px;
+  color: var(--tour-text-secondary);
+  padding: 0;
+  font-size: 1.125rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.chord-explorer-tour-close:hover {
+  color: var(--tour-text-primary);
+  background: var(--tour-bg-elevated);
+}
+
+.chord-explorer-tour-title {
+  color: var(--tour-text-primary);
+  font-family: var(--tour-font-display), var(--tour-font-mono);
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0 24px 0 0;
+  padding-right: 8px;
+}
+
+.chord-explorer-tour-description {
+  color: var(--tour-text-secondary);
+  line-height: 1.5;
+  font-size: 0.875rem;
+  margin: 8px 0 0;
+}
+
+.chord-explorer-tour-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 12px;
+  padding-top: 12px;
+  padding-bottom: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.chord-explorer-tour-footer-row {
+  flex-basis: 100%;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  margin-top: 4px;
+}
+
+.chord-explorer-tour-footer-link-sep {
+  color: var(--tour-text-dim);
+  font-size: 12px;
+  user-select: none;
+}
+
+/* Footer text links: Skip tutorial, Don't show again - light grey, monospace, link style */
+.chord-explorer-tour-popover .chord-explorer-tour-footer-link {
+  background: none !important;
+  border: none !important;
+  margin: 0 !important;
+  padding: 4px 0 !important;
+  color: #9898a8 !important;
+  font-family: var(--tour-font-mono), 'JetBrains Mono', 'Fira Code', monospace !important;
+  font-size: 12px !important;
+  line-height: 1.4;
+  cursor: pointer;
+  text-align: left;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.chord-explorer-tour-popover .chord-explorer-tour-footer-link:hover {
+  color: var(--tour-accent-warm, #f6992c) !important;
+}
+
+.chord-explorer-tour-progress {
+  color: var(--tour-text-dim);
+  font-size: 12px;
+}
+
+.chord-explorer-tour-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chord-explorer-tour-btn {
+  background: var(--tour-bg-hover);
+  color: var(--tour-text-primary);
+  border: var(--tour-border-subtle);
+  font-family: var(--tour-font-mono);
+  min-height: 36px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+}
+
+.chord-explorer-tour-btn:hover:not(:disabled) {
+  background: var(--tour-accent-warm);
+  color: var(--tour-bg-primary);
+  border-color: var(--tour-accent-warm);
+}
+
+.chord-explorer-tour-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chord-explorer-tour-popover-welcome .chord-explorer-tour-title {
+  margin-right: 0;
+}

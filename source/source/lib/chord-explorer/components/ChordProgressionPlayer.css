@@ -1,0 +1,2795 @@
+/* Chord Progression Player - Matches app design system */
+
+.chord-progression-player {
+  position: relative;
+  background: var(--bg-secondary);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 1;
+  flex-basis: auto;
+  overflow: hidden;
+  max-width: 100%;
+  min-width: 0;
+  width: 100%;
+}
+
+.player-transport-bar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  padding: var(--space-sm) var(--space-md) !important;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: var(--space-md);
+  position: relative;
+}
+
+/* Group selected chord info and insert button together - no space between */
+.player-selected-chord-info + .player-timeline-actions {
+  margin-left: 5px !important;
+  padding-left: 0;
+}
+
+/* Group selected chord info with timeline actions - they should always be together */
+.player-selected-chord-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+/* Create a wrapper group for chord info + insert button when timeline actions is a sibling */
+.player-transport-bar:has(+ .chord-progression-player .player-timeline-actions) .player-selected-chord-info,
+.player-selected-chord-info + * + .player-timeline-actions {
+  /* This will be handled via grid positioning */
+}
+
+.transport-controls {
+  display: flex;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+  min-width: 0;
+  grid-column: 1;
+}
+
+.transport-button {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-primary) !important;
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  min-width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.transport-button:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.transport-button:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.transport-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Material Symbols icons – must enable ligatures so icon names render as glyphs */
+.chord-progression-player .material-symbols-outlined,
+.transport-button .material-symbols-outlined,
+.transport-button .transport-icon {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 20px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+}
+
+.transport-button .material-symbols-outlined,
+.transport-button .transport-icon {
+  vertical-align: middle;
+}
+
+.play-stop-button {
+  background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-warm-dim) 100%);
+  border-color: var(--accent-warm);
+  color: var(--bg-primary);
+  font-weight: 600;
+}
+
+.play-stop-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ffb833 0%, #e08a1e 100%);
+  box-shadow: 0 2px 10px rgba(245, 166, 35, 0.3);
+}
+
+.play-stop-button.is-playing {
+  background: rgba(201, 123, 132, 0.2);
+  border-color: rgba(201, 123, 132, 0.4);
+  color: var(--chord-dim);
+}
+
+.play-stop-button.is-playing:hover:not(:disabled) {
+  background: rgba(201, 123, 132, 0.3);
+  border-color: var(--chord-dim);
+  box-shadow: none;
+}
+
+.clear-button {
+  color: var(--text-secondary);
+}
+
+.clear-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.save-progression-button,
+.output-meter-button {
+  color: var(--text-primary);
+}
+
+.save-progression-button:hover:not(:disabled),
+.output-meter-button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.save-progression-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Player settings moved to primary-controls - styles removed from here */
+
+/* Player controls group - keeps Time, Tempo, Metronome together */
+/* When space is limited, drop entire group below instead of wrapping individually */
+.player-controls-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: nowrap;
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+/* Group metronome and keyboard settings buttons together */
+.metronome-menu-group,
+.keyboard-settings-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+  align-items: flex-start;
+}
+
+/* Create a button group for metronome and keyboard settings to align them side-by-side */
+/* Tighten gap between metronome and keyboard settings buttons to visually group them */
+/* Negative margin counteracts parent gap to create tighter spacing */
+.player-controls-group .metronome-menu-group + .keyboard-settings-menu-group {
+  margin-left: calc(2px - var(--space-md));
+}
+
+/* Ensure buttons align properly with tempo controls */
+.player-controls-group .setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  align-items: flex-start;
+}
+
+/* Align metronome and keyboard settings buttons horizontally when next to each other */
+/* Ensure both buttons have the same baseline alignment and match tempo controls height */
+.player-controls-group .metronome-menu-group .metronome-toggle,
+.player-controls-group .keyboard-settings-menu-group .keyboard-settings-toggle {
+  align-self: flex-start;
+  margin-top: 0;
+}
+
+.setting-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+}
+
+.setting-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+}
+
+.time-signature-button {
+  appearance: none;
+  background: var(--bg-elevated);
+  border: var(--border-subtle);
+  border-radius: 6px;
+  padding: var(--space-sm) var(--space-md);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 100px;
+  height: 36px;
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+}
+
+.time-signature-button:hover {
+  background-color: var(--bg-hover);
+}
+
+.time-signature-button:focus {
+  outline: none;
+  border-color: var(--accent-warm);
+}
+
+.tempo-controls-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.tempo-controls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.tempo-btn {
+  background: var(--bg-elevated);
+  border: var(--border-subtle);
+  color: var(--text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  min-width: 32px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.tempo-btn:hover:not(:disabled) {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.tempo-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tempo-display {
+  background: var(--bg-elevated);
+  border: var(--border-subtle);
+  color: var(--text-primary);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: 6px;
+  min-width: 60px;
+  height: 36px;
+  font-size: 14px;
+  font-family: var(--font-mono);
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tempo-label {
+  color: var(--text-dim);
+  font-size: 10px;
+  font-family: var(--font-mono);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-left: var(--space-xs);
+}
+
+.metronome-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+}
+
+.metronome-menu-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  visibility: hidden; /* Hide label, use title/aria-label instead */
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.metronome-toggle {
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  min-width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: none;
+  outline: none;
+}
+
+.metronome-icon {
+  width: 30px;
+  height: 30px;
+  fill: var(--text-primary);
+  stroke: none;
+  filter: none;
+  transition: fill var(--transition-fast);
+}
+
+.metronome-icon path {
+  fill: var(--text-primary);
+  stroke: none;
+}
+
+.metronome-toggle:hover:not(:disabled) {
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.metronome-toggle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.metronome-toggle[aria-expanded="true"] {
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.metronome-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Keyboard settings - matches metronome style */
+.keyboard-settings-menu-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  position: relative;
+}
+
+.keyboard-settings-menu-group label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  visibility: hidden; /* Hide label, use title/aria-label instead */
+  height: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.keyboard-mobile-settings {
+  display: none;
+  position: relative;
+}
+
+.keyboard-settings-toggle {
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  padding: var(--space-xs) var(--space-sm);
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  min-width: 36px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-shadow: none;
+  outline: none;
+}
+
+.keyboard-settings-toggle:hover:not(:disabled) {
+  background: none;
+  border: 0;
+  box-shadow: none;
+}
+
+.keyboard-settings-toggle:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.keyboard-settings-toggle[aria-expanded="true"] {
+  background: none;
+  border: 0;
+  color: var(--text-primary);
+  box-shadow: none;
+}
+
+.keyboard-settings-toggle:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.settings-icon {
+  width: 30px;
+  height: 30px;
+  fill: var(--text-primary);
+  stroke: none;
+  filter: none;
+  transition: fill var(--transition-fast);
+}
+
+.settings-icon path {
+  fill: var(--text-primary);
+  stroke: none;
+}
+
+.keyboard-settings-menu {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 200px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: var(--space-sm);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.keyboard-settings-menu.open {
+  display: flex;
+}
+
+/* When in primary-controls, adjust menu positioning */
+.primary-controls .keyboard-settings-menu {
+  bottom: auto;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+}
+
+/* Metronome toggle enabled state handled above */
+
+.metronome-type-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 45px;
+}
+
+.metronome-type-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  font-size: 13px;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  cursor: pointer;
+  outline: none;
+}
+
+.metronome-type-select:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.metronome-type-select:focus {
+  border-color: var(--accent-warm);
+  box-shadow: 0 0 0 2px rgba(245, 166, 35, 0.2);
+}
+
+.metronome-volume-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  min-width: 120px;
+}
+
+.metronome-volume-label {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  min-width: 45px;
+}
+
+.metronome-volume-slider {
+  flex: 1;
+  height: 4px;
+  background: linear-gradient(90deg, var(--bg-elevated) 0%, rgba(245, 166, 35, 0.4) 100%);
+  border-radius: 2px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.metronome-volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  background: var(--accent-warm);
+  border-radius: 50%;
+  cursor: pointer;
+  transition: 
+    transform var(--transition-fast),
+    background var(--transition-fast);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.metronome-volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #ffb833;
+}
+
+.metronome-volume-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  background: var(--accent-warm);
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: 
+    transform var(--transition-fast),
+    background var(--transition-fast);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.metronome-volume-slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  background: #ffb833;
+}
+
+.player-timeline-container {
+  position: relative;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-secondary);
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+.player-timeline {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  gap: var(--space-xs);
+  min-height: 80px;
+  align-items: stretch;
+  position: relative;
+}
+
+.timeline-bar {
+  position: relative;
+  min-width: 200px;
+  width: 200px;
+  height: 80px;
+  background: var(--bg-elevated);
+  border-radius: 6px;
+  padding: var(--space-xs);
+  cursor: pointer;
+  transition: background var(--transition-fast);
+}
+
+.timeline-bar:hover {
+  background: var(--bg-hover);
+}
+
+.timeline-bar.active {
+  background: rgba(245, 166, 35, 0.1);
+  box-shadow: 0 0 15px rgba(245, 166, 35, 0.2);
+}
+
+.timeline-bar.empty-bar {
+  border: 2px dashed rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 150px;
+  background: transparent;
+}
+
+.empty-bar-hint {
+  color: var(--text-dim);
+  font-size: 11px;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.timeline-chord {
+  position: absolute;
+  top: var(--space-xs);
+  bottom: var(--space-xs);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-xs);
+  overflow: hidden;
+  cursor: pointer;
+  transition: 
+    border-color var(--transition-fast),
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
+  /* Don't transition background - let inline styles update smoothly */
+}
+
+.timeline-chord:hover:not(.playing) {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+  transform: translateY(-1px);
+}
+
+/* When a bar is active but chord is not playing, show subtle highlight */
+.timeline-chord.sounding:not(.playing) {
+  background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-warm-dim) 100%);
+  border-color: var(--accent-warm);
+  box-shadow: 
+    0 2px 10px rgba(245, 166, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* When playing, inline style takes precedence - no CSS background */
+.timeline-chord.playing {
+  border-color: var(--accent-warm);
+  box-shadow: 
+    0 0 8px rgba(245, 166, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  /* Don't set background here - let inline style handle it completely */
+}
+
+.timeline-chord.selected {
+  background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-warm-dim) 100%);
+  border-color: var(--accent-warm);
+  box-shadow: 
+    0 2px 10px rgba(245, 166, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  z-index: 5;
+}
+
+.timeline-chord.dragging {
+  opacity: 0.5;
+  cursor: grabbing;
+  z-index: 20;
+}
+
+.timeline-chord.dragging-outside {
+  background: linear-gradient(135deg, rgba(201, 123, 132, 0.8) 0%, rgba(150, 80, 90, 0.8) 100%) !important;
+  border-color: var(--chord-dim) !important;
+  box-shadow: 
+    0 2px 10px rgba(201, 123, 132, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2) !important;
+}
+
+.timeline-chord.dragging-outside .chord-symbol {
+  color: var(--bg-primary) !important;
+}
+
+.timeline-chord.drag-over-chord {
+  background: linear-gradient(135deg, rgba(245, 166, 35, 0.3) 0%, rgba(224, 138, 30, 0.3) 100%) !important;
+  border-color: var(--accent-warm) !important;
+  border-width: 2px !important;
+  box-shadow: 
+    0 0 12px rgba(245, 166, 35, 0.5),
+    inset 0 0 8px rgba(245, 166, 35, 0.2) !important;
+  transform: scale(1.05);
+  z-index: 15;
+}
+
+.timeline-chord.drag-over-chord .chord-symbol {
+  color: var(--accent-warm) !important;
+  font-weight: 700;
+}
+
+.timeline-bar.drag-over {
+  background: rgba(245, 166, 35, 0.15);
+  box-shadow: 0 0 20px rgba(245, 166, 35, 0.3);
+}
+
+/* Touch-drag ghost when long-pressing palette chord on touch devices */
+.palette-touch-drag-ghost {
+  position: fixed;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10000;
+  padding: 8px 14px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  background: var(--bg-elevated);
+  border: 2px solid var(--accent-warm);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  touch-action: none;
+}
+
+.chord-symbol {
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.timeline-chord.sounding .chord-symbol,
+.timeline-chord.selected .chord-symbol,
+.timeline-chord.playing .chord-symbol {
+  color: var(--bg-primary);
+}
+
+/* Resize border between chords - desktop only */
+.timeline-border-resize {
+  position: absolute;
+  top: var(--space-xs);
+  bottom: var(--space-xs);
+  width: 4px;
+  margin-left: -2px;
+  cursor: col-resize;
+  z-index: 10;
+  background: transparent;
+  transition: background var(--transition-fast);
+  /* Hide on touch devices */
+  touch-action: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .timeline-border-resize:hover {
+    background: var(--accent-warm);
+    box-shadow: 0 0 8px rgba(245, 166, 35, 0.5);
+  }
+  
+  .timeline-border-resize.resizing {
+    background: var(--accent-warm);
+    box-shadow: 0 0 12px rgba(245, 166, 35, 0.7);
+    width: 6px;
+    margin-left: -3px;
+  }
+}
+
+/* Hide resize handles on touch devices */
+@media (hover: none) and (pointer: coarse) {
+  .timeline-border-resize {
+    display: none;
+  }
+}
+
+/* Metronome menu */
+.metronome-menu {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  right: 0;
+  min-width: 220px;
+  background: var(--bg-secondary);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: var(--space-md);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+/* When in primary-controls, adjust menu positioning */
+.primary-controls .metronome-menu {
+  bottom: auto;
+  top: calc(100% + 8px);
+  right: 0;
+  left: auto;
+}
+
+/* Responsive: Keep player-controls-group together - drop as whole group when needed */
+@media (max-width: 1200px) {
+  .player-controls-group {
+    gap: var(--space-sm);
+  }
+  
+  .setting-group {
+    min-width: 0;
+  }
+  
+  .time-signature-button {
+    min-width: 80px;
+  }
+  
+  .tempo-display {
+    min-width: 50px;
+  }
+  
+  .metronome-toggle {
+    min-width: 36px;
+    height: 32px;
+  }
+  
+  .keyboard-settings-toggle {
+    min-width: 36px;
+    height: 32px;
+  }
+  
+  /* Show keyboard settings when side controls are hidden */
+  .keyboard-mobile-settings {
+    display: block;
+  }
+  
+  /* Stack metronome and keyboard settings vertically on tablet */
+  .metronome-menu-group,
+  .keyboard-settings-menu-group {
+    flex-direction: column;
+  }
+}
+
+/* Drop entire player-controls-group below when space is limited */
+/* Use a breakpoint that ensures the group drops before individual items wrap */
+@media (max-width: 1100px) {
+  .control-group.primary-controls {
+    flex-wrap: wrap;
+  }
+  
+  .player-controls-group {
+    flex: 1 1 100%;
+    order: 999; /* High order to ensure it drops to bottom */
+    margin-top: var(--space-xs);
+    padding-top: var(--space-xs);
+    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    justify-content: flex-start;
+    gap: var(--space-md);
+    flex-wrap: nowrap; /* Keep items horizontal within the group */
+  }
+}
+
+/* Metronome menu uses settings-menu-row for consistent styling with keyboard settings */
+.metronome-menu .settings-menu-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-elevated);
+  border-radius: 6px;
+}
+
+.metronome-menu .settings-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.metronome-volume-row {
+  flex-direction: column;
+  align-items: stretch !important;
+  gap: var(--space-xs);
+}
+
+.metronome-volume-row .settings-label {
+  margin-bottom: 2px;
+}
+
+.metronome-volume-control {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.metronome-volume-slider {
+  flex: 1;
+  min-width: 80px;
+}
+
+.metronome-volume-value {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-primary);
+  min-width: 50px;
+  text-align: right;
+}
+
+.metronome-type-select {
+  background: var(--bg-primary);
+  border: var(--border-subtle);
+  border-radius: 4px;
+  color: var(--text-primary);
+  font-size: 12px;
+  padding: var(--space-xs) var(--space-sm);
+  cursor: pointer;
+}
+
+.metronome-type-select:hover {
+  background: var(--bg-hover);
+}
+
+.metronome-mute-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+  width: 100%;
+}
+
+.metronome-mute-button:hover {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-primary);
+}
+
+.metronome-mute-button .mute-icon {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.timeline-chord.playing {
+  border-color: var(--accent-warm);
+  box-shadow: 
+    0 0 8px rgba(245, 166, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Selected chord info in control bar - right aligned, directly adjacent to insert button */
+/* This is always grouped with player-timeline-actions (Insert button) */
+.player-selected-chord-info {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-sm);
+  padding: 0;
+  min-width: 0;
+  flex-wrap: wrap;
+  grid-column: 2;
+  margin-right: var(--space-xs);
+}
+
+.player-selected-chord-info .player-selected-chord-symbol {
+  font-family: var(--font-display);
+  font-size: 13px !important;
+  margin-right: 5px !important;
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  overflow: wrap !important;
+  word-break: break-word !important;
+}
+
+.player-selected-chord-info .player-selected-chord-notes {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent-warm);
+  letter-spacing: 0.08em;
+}
+
+.player-selected-chord-info .player-selected-chord-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  font-size: 10px;
+  color: var(--text-secondary);
+  padding-left: var(--space-sm);
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.player-selected-chord-info .player-selected-chord-degree {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.player-selected-chord-info .player-selected-chord-scale {
+  opacity: 0.8;
+}
+
+/* Timeline actions - Insert/Remove buttons */
+/* Always grouped with player-selected-chord-info in the transport bar */
+.player-timeline-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: 0;
+  flex-shrink: 0;
+  min-width: 0;
+  grid-column: 3;
+  white-space: nowrap;
+  justify-content: flex-end;
+}
+
+/* Group selected chord info and insert button together visually */
+.player-selected-chord-info {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+/* Add insert button next to selected chord info when both are visible */
+.player-selected-chord-info::after {
+  content: '';
+  display: none;
+}
+
+.player-insert-chord-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md) !important;
+  height: 32px;
+  background: linear-gradient(135deg, var(--accent-warm) 0%, #e08a1e 100%);
+  border: none;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: #1a1a1a;
+  cursor: pointer;
+  transition: 
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    opacity var(--transition-fast);
+  box-shadow: 
+    0 2px 10px rgba(245, 166, 35, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  flex-shrink: 1;
+  min-width: 50px;
+  white-space: nowrap;
+}
+
+.player-insert-chord-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 
+    0 4px 15px rgba(245, 166, 35, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.player-insert-chord-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.player-insert-chord-button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.player-remove-chord-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-sm);
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  font-size: 16px;
+  cursor: pointer;
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast),
+    border-color var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.player-remove-chord-button.trash-icon-button {
+  /* Trashcan icon button styling */
+  line-height: 1;
+}
+
+.player-remove-chord-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(201, 123, 132, 0.25);
+  border-color: rgba(201, 123, 132, 0.4);
+}
+
+.player-remove-chord-button:active {
+  transform: translateY(0);
+}
+
+.insert-icon {
+  font-size: 16px;
+}
+
+.insert-text {
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+/* Scrollbar styling */
+.player-timeline-container::-webkit-scrollbar {
+  height: 8px;
+}
+
+.player-timeline-container::-webkit-scrollbar-track {
+  background: var(--bg-primary);
+}
+
+.player-timeline-container::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 4px;
+}
+
+.player-timeline-container::-webkit-scrollbar-thumb:hover {
+  background: var(--text-dim);
+}
+
+/* Fix for 1024px and below - ensure selected chord info and insert button stay together */
+@media (max-width: 1024px) {
+  .player-transport-bar {
+    padding: var(--space-xs) var(--space-sm);
+    gap: var(--space-sm);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: hidden;
+  }
+  
+  .transport-controls {
+    flex: 0 0 auto;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  
+  /* Group selected chord info with timeline actions - keep them together, right aligned */
+  /* Use flexbox to group them together in a flex container */
+  .player-selected-chord-info {
+    flex: 0 1 auto;
+    padding: 0;
+    min-width: 0;
+    overflow: hidden;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-xs);
+    margin-right: 0;
+    margin-left: auto !important;
+    display: flex;
+  }
+  
+  /* Timeline actions grouped with selected chord info - directly adjacent */
+  .player-timeline-actions {
+    flex: 0 0 auto;
+    padding: 0;
+    justify-content: flex-end;
+    flex-shrink: 0;
+    min-width: 0;
+    margin-left: var(--space-xs);
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Fix for 860px and below - prevent overlap by grouping selected chord info and insert button */
+@media (max-width: 860px) {
+  .player-transport-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: var(--space-sm);
+  }
+  
+  .transport-controls {
+    flex: 0 0 auto;
+  }
+  
+  /* Group selected chord info with timeline actions - keep them together, right aligned */
+  .player-selected-chord-info {
+    flex: 0 1 auto;
+    min-width: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: var(--space-xs);
+    padding: 0;
+    margin-right: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+  }
+  
+  .player-timeline-actions {
+    flex: 0 0 auto;
+    padding: 0;
+    margin-left: var(--space-xs);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-symbol {
+    font-size: 16px;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-notes {
+    font-size: 10px;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-meta {
+    display: none;
+  }
+  
+  
+  /* Ensure buttons don't overflow */
+  .player-insert-chord-button,
+  .player-remove-chord-button {
+    min-width: 50px;
+    flex-shrink: 1;
+    max-width: 100%;
+  }
+  
+  .setting-group {
+    gap: 4px;
+  }
+  
+  .setting-group label {
+    font-size: 10px;
+  }
+  
+  .time-signature-button {
+    min-width: 42px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+  
+  .tempo-display {
+    min-width: 36px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+  
+  .tempo-btn {
+    min-width: 22px;
+    height: 26px;
+    font-size: 12px;
+    padding: 2px 4px;
+  }
+  
+  .tempo-label {
+    font-size: 10px;
+  }
+  
+  .metronome-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  
+  .keyboard-settings-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  
+  .player-insert-chord-button,
+  .player-remove-chord-button {
+    height: 28px;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 10px;
+    min-width: 50px;
+  }
+  
+  .insert-text,
+  .remove-text {
+    font-size: 9px;
+  }
+  
+  .insert-icon,
+  .remove-icon {
+    font-size: 14px;
+  }
+}
+
+/* Additional fix for 900px and below - keep transport controls and grouped elements on same row */
+@media (max-width: 900px) {
+  .player-transport-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  
+  .transport-controls {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+  
+  /* Settings moved to primary controls section */
+  
+  /* Group selected chord info with timeline actions - keep them together, right aligned */
+  .player-selected-chord-info {
+    flex: 0 1 auto;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    padding: 0;
+    gap: var(--space-xs);
+    margin-right: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+  
+  /* Timeline actions stays with selected chord info - directly adjacent */
+  .player-timeline-actions {
+    flex: 0 0 auto;
+    justify-content: flex-end;
+    padding: 0;
+    flex-wrap: nowrap;
+    margin-left: var(--space-xs);
+    display: flex;
+    align-items: center;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .player-transport-bar {
+    padding: var(--space-xs) var(--space-sm);
+    gap: var(--space-sm);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+
+  .transport-controls {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+  }
+
+  /* Settings moved to primary controls section */
+
+  /* Keep selected chord info and timeline actions together on same row, right aligned */
+  .player-selected-chord-info {
+    flex: 0 1 auto;
+    padding: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    gap: var(--space-xs);
+    margin-right: 0;
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+  }
+
+  .player-timeline-actions {
+    flex: 0 0 auto;
+    margin-left: var(--space-xs);
+    padding: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    display: flex;
+    align-items: center;
+  }
+
+  .setting-group {
+    gap: 4px;
+  }
+
+  .setting-group label {
+    font-size: 10px;
+  }
+
+  .time-signature-button {
+    min-width: 45px;
+    padding: 4px 8px;
+    font-size: 12px;
+  }
+
+  .tempo-display {
+    min-width: 38px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+
+  .tempo-btn {
+    min-width: 24px;
+    height: 26px;
+    font-size: 12px;
+  }
+
+  .tempo-label {
+    font-size: 10px;
+  }
+
+  .metronome-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  
+  .keyboard-settings-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+
+  .metronome-menu {
+    min-width: 180px;
+    right: auto;
+    left: 0;
+  }
+  
+  .keyboard-settings-menu {
+    min-width: 180px;
+    right: auto;
+    left: 0;
+  }
+
+  .player-timeline-container {
+    padding: var(--space-xs) var(--space-sm);
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .timeline-bar {
+    min-width: 150px;
+    width: 150px;
+    height: 60px;
+  }
+
+  .chord-symbol {
+    font-size: 12px;
+  }
+
+  .player-selected-chord-info {
+    gap: var(--space-xs);
+    padding: 0;
+    margin-right: 0;
+    justify-content: flex-end;
+  }
+  
+  .player-timeline-actions {
+    padding: 0;
+    margin-left: 0;
+  }
+
+  .player-selected-chord-info .player-selected-chord-symbol {
+    font-size: 16px;
+  }
+
+  .player-selected-chord-info .player-selected-chord-notes {
+    font-size: 10px;
+  }
+
+  .player-selected-chord-info .player-selected-chord-meta {
+    display: none;
+  }
+
+  .player-timeline-actions {
+    gap: var(--space-xs);
+    padding-left: var(--space-sm);
+  }
+
+  .player-insert-chord-button,
+  .player-remove-chord-button {
+    height: 28px;
+    padding: var(--space-xs) var(--space-sm);
+    font-size: 10px;
+    min-width: 50px;
+  }
+
+  .insert-icon,
+  .remove-icon {
+    font-size: 14px;
+  }
+}
+
+/* Critical fix for 530px and below - ensure playback area doesn't overflow */
+@media (max-width: 530px) {
+  .chord-progression-player {
+    overflow-x: hidden;
+    overflow-y: hidden;
+  }
+  
+  .player-transport-bar {
+    padding: var(--space-xs);
+    gap: var(--space-xs);
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    overflow-x: hidden;
+  }
+  
+  .transport-controls {
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    flex-wrap: wrap;
+    gap: var(--space-xs);
+  }
+  
+  .transport-button {
+    min-width: 28px;
+    height: 28px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+  
+  /* Settings moved to primary controls section */
+  
+  /* Group selected chord info with timeline actions - keep them together on same row, right aligned */
+  .player-selected-chord-info {
+    flex: 0 1 auto;
+    padding: 0;
+    gap: var(--space-xs);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    margin-right: 0;
+    margin-left: auto;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-symbol {
+    font-size: 14px;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-notes {
+    font-size: 9px;
+  }
+  
+  /* Timeline actions stays with selected chord info on same row - directly adjacent */
+  .player-timeline-actions {
+    flex: 0 0 auto;
+    margin-left: var(--space-xs);
+    padding: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  
+  
+  .setting-group {
+    gap: 2px;
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+  
+  .setting-group label {
+    font-size: 9px;
+  }
+  
+  .time-signature-button {
+    min-width: 40px;
+    padding: 3px 6px;
+    font-size: 11px;
+  }
+  
+  .tempo-display {
+    min-width: 32px;
+    font-size: 11px;
+    padding: 3px 4px;
+  }
+  
+  .tempo-btn {
+    min-width: 20px;
+    height: 24px;
+    font-size: 11px;
+    padding: 2px 4px;
+  }
+  
+  .tempo-label {
+    font-size: 9px;
+  }
+  
+  .metronome-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  
+  .keyboard-settings-toggle {
+    min-width: 36px;
+    height: 36px;
+    padding: 3px;
+  }
+  
+  .player-insert-chord-button,
+  .player-remove-chord-button {
+    flex: 1 1 calc(50% - var(--space-xs));
+    min-width: 50px;
+    height: 28px;
+    padding: var(--space-xs);
+    font-size: 9px;
+    max-width: 120px;
+  }
+  
+  .player-timeline-container {
+    padding: var(--space-xs);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  .player-timeline {
+    min-height: 60px;
+    gap: var(--space-xs);
+  }
+  
+  .timeline-bar {
+    min-width: 100px;
+    width: 100px;
+    height: 50px;
+  }
+  
+  .timeline-bar.empty-bar {
+    min-width: 100px;
+  }
+  
+  .empty-bar-hint {
+    font-size: 9px;
+  }
+  
+  .chord-symbol {
+    font-size: 11px;
+  }
+  
+  .metronome-menu {
+    min-width: 160px;
+    right: auto;
+    left: 0;
+    bottom: calc(100% + 4px);
+  }
+}
+
+/* Ensure visibility at 495px and below - only wrap if absolutely necessary */
+@media (max-width: 495px) {
+  .player-transport-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+  }
+  
+  .player-selected-chord-info {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    flex: 0 1 auto;
+    padding: 0;
+    gap: var(--space-xs);
+    flex-wrap: nowrap;
+    justify-content: flex-end;
+    min-height: auto;
+    min-width: 0;
+    margin-right: 0;
+    margin-left: auto;
+    align-items: center;
+  }
+  
+  .player-timeline-actions {
+    display: flex !important;
+    visibility: visible !important;
+    flex: 0 0 auto;
+    padding: 0;
+    justify-content: flex-end;
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    margin-left: var(--space-xs);
+    align-items: center;
+  }
+  
+  /* Only wrap to new row if viewport is extremely narrow */
+  @media (max-width: 400px) {
+    .player-transport-bar {
+      flex-wrap: wrap;
+    }
+    
+    .transport-controls {
+      flex: 0 0 100%;
+      width: 100%;
+    }
+    
+    .player-selected-chord-info {
+      flex: 0 1 auto;
+      justify-content: flex-end;
+      margin-left: auto;
+    }
+    
+    .player-timeline-actions {
+      flex: 0 0 auto;
+      justify-content: flex-end;
+    }
+  }
+  
+  .player-selected-chord-info .player-selected-chord-symbol {
+    font-size: 13px;
+  }
+  
+  .player-selected-chord-info .player-selected-chord-notes {
+    font-size: 8px;
+  }
+}
+
+@media (max-width: 480px) {
+  .transport-controls {
+    gap: 4px;
+  }
+
+  .transport-button {
+    min-width: 32px;
+    height: 28px;
+    font-size: 12px;
+    padding: 4px 6px;
+  }
+
+
+  .metronome-volume-group {
+    order: -1; /* Move to front on mobile */
+    width: 100%;
+    margin-bottom: var(--space-xs);
+  }
+
+  .timeline-bar {
+    min-width: 100px;
+    width: 100px;
+    height: 50px;
+  }
+
+  .chord-symbol {
+    font-size: 11px;
+  }
+}
+
+/* Clear progression confirm modal */
+.clear-confirm-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: var(--space-md);
+}
+
+.clear-confirm-dialog {
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  max-width: 360px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.clear-confirm-message {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-primary);
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.clear-confirm-actions {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+}
+
+.clear-confirm-btn {
+  padding: var(--space-xs) var(--space-md);
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.clear-confirm-cancel {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.clear-confirm-cancel:hover {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.3);
+  color: var(--text-primary);
+}
+
+.clear-confirm-ok {
+  background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-warm-dim) 100%);
+  border: 1px solid var(--accent-warm);
+  color: var(--bg-primary);
+}
+
+.clear-confirm-ok:hover {
+  background: linear-gradient(135deg, #ffb833 0%, #e08a1e 100%);
+  box-shadow: 0 2px 10px rgba(245, 166, 35, 0.3);
+}
+
+/* Output level meter modal (DAW-style) */
+.output-meter-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.5);
+  padding: var(--space-md);
+}
+
+.output-meter-dialog {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  min-width: 140px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-md);
+}
+
+.output-meter-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.output-meter-stereo-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+  width: 100%;
+}
+
+.output-meter-stereo-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.output-meter-stereo-row {
+  display: flex;
+  flex-direction: row;
+  gap: 2px;
+  height: 24px;
+  align-items: stretch;
+}
+
+.output-meter-segment {
+  width: 6px;
+  min-width: 4px;
+  flex: 1;
+  border-radius: 2px;
+  transition: opacity 0.05s ease-out;
+  opacity: 0.2;
+}
+
+.output-meter-segment-on {
+  opacity: 1;
+}
+
+.output-meter-segment-green {
+  background: #28a050;
+}
+
+.output-meter-segment-yellow {
+  background: #d4a820;
+}
+
+.output-meter-segment-red {
+  background: #d43838;
+}
+
+.output-meter-db {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+}
+
+.output-meter-dialog .output-meter-stereo-wrap .output-meter-stereo-col:first-child .output-meter-db::before {
+  content: 'L ';
+  opacity: 0.8;
+}
+
+.output-meter-dialog .output-meter-stereo-wrap .output-meter-stereo-col:last-child .output-meter-db::before {
+  content: 'R ';
+  opacity: 0.8;
+}
+
+.output-meter-close {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.output-meter-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.transport-button.output-meter-button {
+  padding: 6px 8px;
+}
+
+.output-meter-icon {
+  font-size: 12px;
+  letter-spacing: 1px;
+  opacity: 0.9;
+}
+
+/* Add Progression Button */
+.empty-bar-hint-container {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.add-progression-button {
+  padding: var(--space-xs) var(--space-sm) !important;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.add-progression-button:hover {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.add-progression-button:active {
+  transform: scale(0.95);
+}
+
+/* Progression Selection Modal (and other modals portaled to body)
+   Light theme: modals use chord-explorer-theme-host so they get variables when data-theme="light". */
+.chord-explorer-theme-host[data-theme="light"] {
+  --bg-primary: #f8f6f2;
+  --bg-secondary: #ebe8e4;
+  --bg-elevated: #e5e2dd;
+  --bg-hover: #ddd9d2;
+  --bg-card: #e8e5e0;
+  --accent-warm: #f6992c;
+  --accent-warm-dim: #c47a1a;
+  --accent-cool: #4a8bc4;
+  --accent-cool-dim: #3a6d99;
+  --accent-purple: #7b1fa2;
+  --accent-purple-dim: #5e1780;
+  --chord-major: #b8862e;
+  --chord-minor: #4a7a9e;
+  --chord-dim: #9e4d57;
+  --chord-aug: #7b6a9e;
+  --chord-sus: #5a9e5e;
+  --chord-dom: #c96a52;
+  --text-primary: #1a1a1a;
+  --text-secondary: #4a4a4e;
+  --text-dim: #6a6a70;
+  --border-subtle: 1px solid rgba(0, 0, 0, 0.08);
+  --border-active: 1px solid rgba(212, 137, 15, 0.5);
+  --shadow-glow: 0 0 40px rgba(212, 137, 15, 0.12);
+  --shadow-button: 0 4px 20px rgba(0, 0, 0, 0.12);
+}
+
+/* Light theme: override hardcoded dark borders in progression modals */
+.chord-explorer-theme-host[data-theme="light"] .progression-selection-dialog {
+  border-color: rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-tension-btn {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-item {
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-tier-title {
+  border-bottom-color: rgba(0, 0, 0, 0.12);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-selection-content::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-selection-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+.chord-explorer-theme-host[data-theme="light"] .save-progression-field input,
+.chord-explorer-theme-host[data-theme="light"] .save-progression-field textarea {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.chord-explorer-theme-host[data-theme="light"] .save-progression-cancel-btn {
+  border-color: rgba(0, 0, 0, 0.2);
+}
+.chord-explorer-theme-host[data-theme="light"] .user-progression-delete-btn {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+.chord-explorer-theme-host[data-theme="light"] .progression-item-notes {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+.progression-selection-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.6);
+  padding: var(--space-md);
+  overflow: hidden;
+}
+
+.progression-selection-dialog {
+  position: relative;
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: var(--space-lg);
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  overflow: hidden;
+}
+
+.progression-selection-title {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-primary);
+  font-size: 20px;
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+
+.progression-selection-close {
+  position: absolute;
+  top: var(--space-md);
+  right: var(--space-md);
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 
+    background var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.progression-selection-close:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.progression-tension-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  flex-wrap: wrap;
+  margin-bottom: var(--space-md);
+}
+
+.progression-tension-label {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.progression-tension-btn {
+  padding: var(--space-xs) var(--space-sm);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast), color var(--transition-fast);
+}
+
+.progression-tension-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.progression-tension-btn[aria-pressed="true"] {
+  background: var(--accent-warm);
+  border-color: var(--accent-warm);
+  color: var(--bg-primary);
+}
+
+.progression-selection-minor-hint {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0 0 var(--space-md);
+  line-height: 1.4;
+}
+
+.progression-minor-scale-badge {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+
+.progression-selection-content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-right: var(--space-xs);
+  min-height: 0;
+}
+
+.progression-selection-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.progression-selection-content::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+  border-radius: 4px;
+}
+
+.progression-selection-content::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+
+.progression-selection-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.progression-tier-section {
+  margin-bottom: var(--space-xl);
+}
+
+.progression-tier-section:last-child {
+  margin-bottom: 0;
+}
+
+.progression-tier-title {
+  margin: 0 0 var(--space-md);
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-display);
+  padding-bottom: var(--space-xs);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.progression-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.progression-item {
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  padding: var(--space-md);
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.progression-item:hover {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.progression-item:focus {
+  outline: 2px solid var(--accent-warm);
+  outline-offset: 2px;
+}
+
+.progression-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: var(--space-xs);
+  gap: var(--space-sm);
+}
+
+.progression-item-name {
+  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  font-family: var(--font-display);
+}
+
+.progression-item-roman {
+  color: var(--accent-warm);
+  font-size: 14px;
+  font-weight: 500;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+.progression-item-example {
+  color: var(--text-secondary);
+  font-size: 13px;
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-mono);
+}
+
+.progression-item-feel {
+  color: var(--text-primary);
+  font-size: 14px;
+  margin-bottom: var(--space-xs);
+  font-style: italic;
+}
+
+.progression-item-styles,
+.progression-item-typical-use {
+  color: var(--text-secondary);
+  font-size: 12px;
+  margin-bottom: var(--space-xs);
+}
+
+.progression-item-notes {
+  color: var(--text-dim);
+  font-size: 12px;
+  margin-top: var(--space-xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  font-style: italic;
+}
+
+/* Compatibility States */
+.progression-item-compatible {
+  /* Normal styling - no changes needed */
+}
+
+.progression-item-incompatible {
+  opacity: 0.5;
+  cursor: not-allowed;
+  background: rgba(201, 123, 132, 0.1);
+}
+
+.progression-item-incompatible:hover {
+  background: rgba(201, 123, 132, 0.15);
+  transform: none;
+}
+
+.progression-item-altered {
+  border-color: rgba(255, 184, 51, 0.4);
+  background: rgba(255, 184, 51, 0.05);
+}
+
+.progression-item-altered:hover {
+  background: rgba(255, 184, 51, 0.1);
+  border-color: rgba(255, 184, 51, 0.6);
+}
+
+.progression-designed-for {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.progression-compatibility-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  margin-top: var(--space-xs);
+  margin-bottom: var(--space-xs);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.progression-force-apply-btn {
+  margin-top: var(--space-sm);
+  padding: var(--space-xs) var(--space-sm);
+  background: rgba(255, 184, 51, 0.2);
+  border: 1px solid rgba(255, 184, 51, 0.4);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+  width: 100%;
+}
+
+.progression-force-apply-btn:hover {
+  background: rgba(255, 184, 51, 0.3);
+  border-color: rgba(255, 184, 51, 0.6);
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .progression-selection-dialog {
+    max-width: 100%;
+    margin: var(--space-sm);
+    padding: var(--space-md);
+    max-height: calc(100vh - var(--space-md) * 2);
+  }
+
+  .progression-item-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .empty-bar-hint-container {
+    flex-direction: column;
+    gap: var(--space-xs);
+  }
+
+  .add-progression-button {
+    width: 100%;
+  }
+}
+
+/* ===========================
+   Save Progression Modal
+   =========================== */
+
+.save-progression-dialog {
+  max-width: 500px;
+}
+
+.save-progression-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-md);
+}
+
+.save-progression-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+}
+
+.save-progression-field label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.save-progression-field input,
+.save-progression-field textarea {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  transition: border-color var(--transition-fast);
+}
+
+.save-progression-field input:focus,
+.save-progression-field textarea:focus {
+  outline: none;
+  border-color: var(--accent-warm);
+}
+
+.save-progression-field input::placeholder,
+.save-progression-field textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.save-progression-field textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.save-progression-key-info {
+  font-size: 12px;
+  color: var(--text-dim);
+  padding: var(--space-sm);
+  background: var(--bg-secondary);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.save-progression-buttons {
+  display: flex;
+  gap: var(--space-sm);
+  justify-content: flex-end;
+  margin-top: var(--space-sm);
+}
+
+.save-progression-cancel-btn,
+.save-progression-save-btn {
+  padding: var(--space-sm) var(--space-lg);
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.save-progression-cancel-btn {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.save-progression-cancel-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.save-progression-save-btn {
+  background: var(--accent-warm);
+  border: 1px solid var(--accent-warm);
+  color: var(--bg-primary);
+}
+
+.save-progression-save-btn:hover {
+  background: var(--accent-warm-hover);
+  border-color: var(--accent-warm-hover);
+}
+
+/* ===========================
+   User Progressions Tier
+   =========================== */
+
+.user-progressions-tier .progression-tier-title {
+  color: var(--accent-warm);
+}
+
+.progression-item-user {
+  position: relative;
+  border-color: rgba(255, 184, 51, 0.3);
+}
+
+.progression-item-user:hover {
+  border-color: rgba(255, 184, 51, 0.5);
+}
+
+.user-progression-key {
+  font-size: 12px;
+  color: var(--accent-warm);
+}
+
+.user-progression-delete-btn {
+  position: absolute;
+  top: var(--space-sm);
+  right: var(--space-sm);
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  color: var(--text-dim);
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast);
+}
+
+.user-progression-delete-btn:hover {
+  background: rgba(255, 100, 100, 0.2);
+  border-color: rgba(255, 100, 100, 0.4);
+  color: #ff6464;
+}
+
+/* ===========================
+   Apply Progression (key mismatch) Modal
+   =========================== */
+
+.apply-progression-dialog {
+  max-width: 440px;
+}
+
+.apply-progression-message {
+  margin: 0 0 var(--space-lg);
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.apply-progression-options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-sm);
+}
+
+.apply-progression-option-btn {
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition-fast), border-color var(--transition-fast);
+}
+
+.apply-progression-option-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-warm);
+}
+
+.apply-progression-option-btn:first-child {
+  border-color: rgba(255, 184, 51, 0.4);
+  color: var(--accent-warm);
+}
+
+.apply-progression-options .save-progression-cancel-btn {
+  margin-top: var(--space-sm);
+}
+
+/* Mobile responsive for save modal */
+@media (max-width: 768px) {
+  .save-progression-dialog {
+    max-width: 100%;
+  }
+  
+  .save-progression-buttons {
+    flex-direction: column;
+  }
+  
+  .save-progression-cancel-btn,
+  .save-progression-save-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Add button in timeline (opens Chord Progressions modal) */
+.add-progression-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xs);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--bg-elevated);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    transform var(--transition-fast);
+  white-space: nowrap;
+}
+
+.add-progression-button:hover {
+  background: var(--bg-hover);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.add-progression-button:active {
+  transform: scale(0.95);
+}
+
+.add-progression-button .add-btn-icon,
+.add-progression-button .material-symbols-outlined {
+  font-family: 'Material Symbols Outlined', sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  font-size: 18px;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'liga';
+  -webkit-font-feature-settings: 'liga';
+  vertical-align: middle;
+}
+
+.add-btn-icon {
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.add-btn-text {
+  font-size: 12px;
+}
+
+/* Output meter icon - improved visibility */
+.output-meter-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+/* ===========================
+   Mobile Improvements
+   =========================== */
+
+/* Better Insert button on mobile */
+@media (max-width: 768px) {
+  .player-insert-chord-button {
+    padding: var(--space-sm) var(--space-md);
+    min-width: 70px;
+    height: 36px;
+    font-size: 12px;
+    background: linear-gradient(135deg, var(--accent-warm) 0%, #e08a1e 100%);
+    box-shadow: 
+      0 2px 12px rgba(245, 166, 35, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .player-insert-chord-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 
+      0 4px 16px rgba(245, 166, 35, 0.5),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  }
+  
+  .insert-text {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  
+  .insert-icon {
+    font-size: 14px;
+  }
+  
+  /* Hide text on empty bar button on narrow screens */
+  .empty-bar-hint {
+    display: none;
+  }
+  
+  .add-progression-button {
+    padding: var(--space-xs) var(--space-sm);
+    min-width: 60px;
+  }
+  
+  .add-btn-text {
+    font-size: 11px;
+  }
+}
+
+@media (max-width: 530px) {
+  .player-insert-chord-button {
+    padding: var(--space-xs) var(--space-md);
+    min-width: 65px;
+    height: 34px;
+    font-size: 11px;
+  }
+  
+  .insert-icon {
+    font-size: 13px;
+  }
+  
+  /* Hide "Add" text, show only icon */
+  .add-btn-text {
+    display: none;
+  }
+  
+  .add-progression-button {
+    min-width: 36px;
+    padding: var(--space-xs);
+  }
+  
+  .add-progression-button .add-btn-icon,
+  .add-progression-button .material-symbols-outlined {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 400px) {
+  .player-insert-chord-button {
+    min-width: 60px;
+    height: 32px;
+    padding: var(--space-xs) var(--space-sm);
+  }
+  
+  .insert-text {
+    font-size: 10px;
+  }
+  
+}
