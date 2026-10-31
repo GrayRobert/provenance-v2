@@ -16,6 +16,35 @@ import {
   uploadMaxMb,
 } from '@/lib/uploadLimits';
 
+/**
+ * Recording formats in preference order. Safari (iOS) records MP4/AAC and does
+ * not support WebM capture, so negotiate with isTypeSupported instead of
+ * hard-coding WebM/opus.
+ */
+const RECORDING_MIME_CANDIDATES = [
+  'audio/webm;codecs=opus',
+  'audio/webm',
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/mp4',
+  'audio/aac',
+  'audio/ogg;codecs=opus',
+  'audio/ogg',
+];
+
+function pickRecordingMimeType(): string {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') {
+    return '';
+  }
+  for (const candidate of RECORDING_MIME_CANDIDATES) {
+    try {
+      if (MediaRecorder.isTypeSupported(candidate)) return candidate;
+    } catch {
+      // keep trying the next candidate
+    }
+  }
+  return '';
+}
+
 export interface RecordAudioDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -98,11 +127,7 @@ export function RecordAudioDrawer({
 
   const startRecording = useCallback(() => {
     if (!streamRef.current || !songId) return;
-    const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-      ? 'audio/webm;codecs=opus'
-      : MediaRecorder.isTypeSupported('audio/webm')
-        ? 'audio/webm'
-        : '';
+    const mimeType = pickRecordingMimeType();
     const options = mimeType ? { mimeType } : {};
     const recorder = new MediaRecorder(streamRef.current, options);
     chunksRef.current = [];
@@ -117,7 +142,7 @@ export function RecordAudioDrawer({
         toast.error('No recording data');
         return;
       }
-      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' });
+      const blob = new Blob(chunksRef.current, { type: recorder.mimeType || mimeType || 'audio/webm' });
       if (blob.size > UPLOAD_MAX_AUDIO_BYTES) {
         toast.error(
           `Recording is too large. Maximum size is ${uploadMaxMb(UPLOAD_MAX_AUDIO_BYTES)} MB. Try a shorter take.`
@@ -186,9 +211,10 @@ export function RecordAudioDrawer({
         file.type === 'audio/mp4' ||
         file.type === 'audio/x-m4a' ||
         file.type.startsWith('audio/ogg') ||
-        file.type.startsWith('audio/webm');
+        file.type.startsWith('audio/webm') ||
+        file.type.startsWith('audio/aac');
       if (!okAudio) {
-        toast.error('Please choose MP3, M4A, OGG, or WebM (WAV/FLAC not accepted).');
+        toast.error('Please choose MP3, M4A, AAC, OGG, or WebM (WAV/FLAC not accepted).');
         return;
       }
       if (file.size > UPLOAD_MAX_AUDIO_BYTES) {
@@ -286,7 +312,7 @@ export function RecordAudioDrawer({
             <input
               ref={fileInputRef}
               type="file"
-              accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/ogg,audio/webm,.mp3,.m4a,.ogg,.webm"
+              accept="audio/mpeg,audio/mp4,audio/x-m4a,audio/aac,audio/ogg,audio/webm,.mp3,.m4a,.aac,.ogg,.webm"
               className="hidden"
               onChange={handleFileChange}
             />

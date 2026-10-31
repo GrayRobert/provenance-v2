@@ -358,6 +358,7 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
     usedBytes: number;
     limitBytes: number;
     tier: string;
+    audioBytes: number;
   } | null>(null);
   const viewImageUrl = useAuthImageUrl(songId, viewingScanId);
   const viewVideoUrl = useAuthVideoUrl(songId, viewingVideoId);
@@ -1047,7 +1048,9 @@ export function ArtifactsTab({ songId, refreshKey, onOpenNote, onPlayRecordings,
 
       {storageUsage != null && (
         <p className="text-xs text-muted border-t border-border pt-3 mt-2">
-          Usage: {formatMb(storageUsage.usedBytes)} MB / {formatMb(storageUsage.limitBytes)} MB ({storageUsage.tier})
+          On this device: song text {formatMb(storageUsage.usedBytes)} MB of ~
+          {formatMb(storageUsage.limitBytes)} MB browser limit
+          {storageUsage.audioBytes > 0 && ` · audio ${formatMb(storageUsage.audioBytes)} MB`}
         </p>
       )}
 

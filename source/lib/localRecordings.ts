@@ -246,6 +246,12 @@ export async function deleteLocalRecordingsForSong(songId: string): Promise<void
 
 /* ---------- backup / restore ---------- */
 
+/** Total bytes of audio stored on this device (from recording metadata). */
+export async function getLocalAudioBytes(): Promise<number> {
+  const rows = await allStored();
+  return rows.reduce((sum, r) => sum + (r.sizeBytes || 0), 0);
+}
+
 export async function listAllStoredRecordings(): Promise<StoredRecording[]> {
   return allStored();
 }

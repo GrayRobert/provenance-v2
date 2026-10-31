@@ -8,7 +8,9 @@ export function extFromMime(mime?: string | null): string {
   if (m.includes('webp')) return 'webp';
   if (m.includes('gif')) return 'gif';
   if (m.includes('webm')) return 'webm';
+  if (m.includes('x-m4a') || m.includes('m4a')) return 'm4a';
   if (m.includes('mp4')) return 'mp4';
+  if (m.includes('aac')) return 'aac';
   if (m.includes('quicktime') || m.includes('m4v')) return 'm4v';
   if (m.includes('wav')) return 'wav';
   if (m.includes('mpeg') || m.includes('mp3')) return 'mp3';

@@ -69,6 +69,7 @@ import {
   type LocalNote,
 } from './localDb';
 import {
+  getLocalAudioBytes,
   deleteLocalRecordingsForSong,
   getCachedRecordingUrl,
   listLocalRecordings,
@@ -631,6 +632,8 @@ export interface StorageUsage {
   usedBytes: number;
   limitBytes: number;
   tier: string;
+  /** Bytes of recorded/uploaded audio kept in this device's IndexedDB. */
+  audioBytes: number;
 }
 
 const LOCAL_STORAGE_LIMIT_BYTES = 5 * 1024 * 1024;
@@ -657,6 +660,7 @@ export const profileApi = {
     usedBytes: estimateUsedBytes(),
     limitBytes: LOCAL_STORAGE_LIMIT_BYTES,
     tier: 'local',
+    audioBytes: await getLocalAudioBytes(),
   }),
 };
 
