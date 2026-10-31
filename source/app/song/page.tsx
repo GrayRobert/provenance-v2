@@ -775,12 +775,8 @@ function SongEditorPageInner() {
               setChordBuilderInsertContext={setChordBuilderInsertContext}
               focusSectionLabelForSectionId={focusSectionLabelForSectionId}
               onFocusSectionLabelDone={() => setFocusSectionLabelForSectionId(null)}
-              onOpenSectionRecord={(sectionId, label) => {
-                runWithPluginGate('track_lab', () => {
-                  setRecordingSectionIdForModal(sectionId);
-                  setRecordingLabelForModal(label);
-                  setAudioRecorderOpen(true);
-                });
+              onOpenSectionRecord={() => {
+                toast.info('Recording is not part of this local-only version yet. It returns in a later update.');
               }}
               runWithPluginGate={runWithPluginGate}
               primarySectionRecording={primaryBySectionId[section.sectionId]}
@@ -850,11 +846,8 @@ function SongEditorPageInner() {
               setAudioPlayerOpen(true);
             });
           }}
-          onOpenTrackLabProject={(project) => {
-            runWithPluginGate('track_lab', () => {
-              setTrackLabProjectToOpen(project);
-              setAudioRecorderOpen(true);
-            });
+          onOpenTrackLabProject={() => {
+            toast.info('Recording is not part of this local-only version yet. It returns in a later update.');
           }}
           contentRef={chordChartsExportRef}
           onRequestVoicingChange={(chordId, symbol, voicingId) =>
