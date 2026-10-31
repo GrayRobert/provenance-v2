@@ -83,6 +83,50 @@ export function detectChordName(noteNames: string[]): string {
   return pitchClasses.join(' ');
 }
 
+/**
+ * True when the active notes' pitch classes are exactly the pitch classes of
+ * the given chord symbol, in any inversion or octave arrangement. Compared via
+ * chroma numbers so enharmonic spellings (A# vs Bb) match.
+ */
+export function notesMatchChordSymbol(noteNames: string[], symbol: string): boolean {
+  if (!symbol || noteNames.length === 0) return false;
+  const chord = Chord.get(symbol);
+  if (!chord || chord.notes.length === 0) return false;
+  const toChromas = (names: string[]) =>
+    new Set(
+      names
+        .map((n) => Note.chroma(Note.pitchClass(n) || n))
+        .filter((c): c is number => c !== undefined)
+    );
+  const noteChromas = toChromas(noteNames);
+  const chordChromas = toChromas(chord.notes);
+  if (noteChromas.size === 0 || chordChromas.size === 0) return false;
+  if (noteChromas.size !== chordChromas.size) return false;
+  for (const c of chordChromas) {
+    if (!noteChromas.has(c)) return false;
+  }
+  return true;
+}
+
+/**
+ * Decide which chord name to show and report when a preferred (intended)
+ * symbol is known. Keeps the preferred symbol when the active notes are
+ * exactly that chord's pitch classes in any inversion - e.g. choosing the
+ * library "1st Inversion" of G (B3 D4 G4) stays "G" instead of the detector's
+ * "Bm#5". Once the user edits the notes away from that pitch-class set, the
+ * detected name is used again.
+ */
+export function resolveChordNameWithPreference(
+  detectedName: string,
+  noteNames: string[],
+  preferredChordName?: string | null
+): string {
+  if (!preferredChordName || !detectedName) return detectedName;
+  return notesMatchChordSymbol(noteNames, preferredChordName)
+    ? preferredChordName
+    : detectedName;
+}
+
 export type ChordToneInfo = {
   note: string;
   interval: string;

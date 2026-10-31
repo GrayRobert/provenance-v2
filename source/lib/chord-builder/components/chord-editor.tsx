@@ -13,12 +13,12 @@ import {
   getChordNotes,
   getNoteAtFret,
   detectChordName,
+  resolveChordNameWithPreference,
   FINGER_COLORS,
 } from '@/lib/chord-builder/chord-utils';
 import { strumChord, playPianoChord } from '@/lib/chord-builder/audio-engine';
 import type { GuitarChordLibraryFormat } from '@/lib/chord-builder/guitarToChordLibrary';
 import { libraryFormatToGuitarChord } from '@/lib/chord-builder/guitarToChordLibrary';
-import { parseChord } from '@/lib/chordService';
 
 export type EditorMode = 'guitar' | 'piano';
 
@@ -84,15 +84,14 @@ export default function ChordEditor({
   const guitarNotes = useMemo(() => getChordNotes(chord), [chord]);
   const pianoNotesArray = useMemo(() => Array.from(pianoActiveNotes), [pianoActiveNotes]);
   const activeNotes = mode === 'guitar' ? guitarNotes : pianoNotesArray;
-  const chordName = useMemo(() => detectChordName(activeNotes), [activeNotes]);
-  const displayChordName = useMemo(() => {
-    if (!preferredChordName || !chordName) return chordName;
-    const normDetected = parseChord(chordName)?.normalizedSymbol;
-    const normPreferred = parseChord(preferredChordName)?.normalizedSymbol;
-    return normDetected && normPreferred && normDetected === normPreferred
-      ? preferredChordName
-      : chordName;
-  }, [chordName, preferredChordName]);
+  const detectedChordName = useMemo(() => detectChordName(activeNotes), [activeNotes]);
+  // Effective name: keeps the intended symbol for inversions of it (any
+  // voicing with the same pitch classes), falls back to detection once the
+  // user edits the notes away from the intended chord.
+  const chordName = useMemo(
+    () => resolveChordNameWithPreference(detectedChordName, activeNotes, preferredChordName),
+    [detectedChordName, activeNotes, preferredChordName]
+  );
 
   const handleChordChange = useCallback((newChord: GuitarChord) => {
     setChord(newChord);
@@ -230,7 +229,7 @@ export default function ChordEditor({
       )}
 
       <div className={compact ? '' : 'max-w-5xl mx-auto px-4 py-6 w-full'}>
-        <ChordDisplay chordName={displayChordName} notes={activeNotes} />
+        <ChordDisplay chordName={chordName} notes={activeNotes} />
 
         {mode === 'guitar' ? (
           <div className="flex flex-col gap-5 mt-2">
