@@ -8,8 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Unpack preview site
+      - name: Download and unpack preview site
         run: |
+          curl -fL -o preview-site.zip "https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/4-preview-site.zip"
           mkdir -p preview
           unzip -o preview-site.zip -d preview -x '.github/*'
           rm -f preview-site.zip
