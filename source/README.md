@@ -16,7 +16,7 @@ Local-first songwriting app, built as a static Next.js site. Songs, history and 
 
 - Section recordings keep one primary take per section; earlier takes are archived (Artifacts > show archived). Takes get automatic versioned names unless named manually
 - Large recordings inflate backup files (base64, ~33% overhead)
-- Timestamps are device-provided; the history is a local record, not independent proof of authorship or time
+- Timestamps are device-provided; the history is a local record, not independent proof of authorship or time. It is a local proof of concept: the original hosted app implemented RFC 3161 timestamping of certificate snapshots, and the longer-term goal was immutable Web3 storage as an optional paid feature; neither is included here
 
 ## Build
 
