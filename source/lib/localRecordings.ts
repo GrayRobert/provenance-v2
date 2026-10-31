@@ -130,6 +130,8 @@ export interface SaveRecordingOptions {
   /** True when the user typed this name themselves; stored as-is, no version suffix. */
   labelIsCustom?: boolean;
   durationSeconds?: number;
+  /** When set, recording belongs to this Track Lab project. */
+  projectId?: string | null;
 }
 
 async function sha256Hex(blob: Blob): Promise<string> {
@@ -200,7 +202,7 @@ export async function saveLocalRecording(
     durationSeconds: options.durationSeconds ?? null,
     updatedAt: now,
     archivedAt: null,
-    projectId: null,
+    projectId: options.projectId ?? null,
     blob,
   };
   const db = await openDb();
@@ -228,6 +230,30 @@ export async function setLocalRecordingArchived(recordingId: string, archived: b
         updatedAt: new Date().toISOString(),
       })
     );
+    await txDone(tx);
+  } finally {
+    db.close();
+  }
+}
+
+/** Archive the active recording for a project track slot (backend parity:
+ * saving a new take on a track archives the previous one at that trackIndex). */
+export async function archiveActiveProjectTrackRecording(
+  projectId: string,
+  trackIndex: number
+): Promise<void> {
+  const rows = (await allStored()).filter(
+    (r) => r.projectId === projectId && r.trackIndex === trackIndex && !r.archivedAt
+  );
+  if (rows.length === 0) return;
+  const now = new Date().toISOString();
+  const db = await openDb();
+  try {
+    const tx = db.transaction(STORE, 'readwrite');
+    const store = tx.objectStore(STORE);
+    for (const rec of rows) {
+      await requestToPromise(store.put({ ...rec, archivedAt: now, updatedAt: now }));
+    }
     await txDone(tx);
   } finally {
     db.close();

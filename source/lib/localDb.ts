@@ -4,7 +4,7 @@
  * All song data lives in localStorage. Nothing here talks to a server.
  * The backup/restore functions serialize the whole workspace to one JSON file.
  */
-import type { Note, Recording, SongDetail, SongSummary, WorkMetadataItem } from './types';
+import type { Note, Recording, SongDetail, SongSummary, TrackLabProject, WorkMetadataItem } from './types';
 import {
   base64ToBlob,
   blobToBase64,
@@ -228,6 +228,57 @@ export function estimateUsedBytes(): number {
 
 /* ---------- backup / restore ---------- */
 
+/* ---------- Track Lab projects (metadata only; track audio lives in IndexedDB) ---------- */
+
+/** Project row without its recordings (recordings join in from IndexedDB by projectId). */
+export type LocalTrackLabProject = Omit<TrackLabProject, 'recordings'>;
+
+function trackLabKey(songId: string): string {
+  return `${PREFIX}tracklab.${songId}`;
+}
+
+export function getLocalTrackLabProjects(songId: string): LocalTrackLabProject[] {
+  return readJson(trackLabKey(songId), [] as LocalTrackLabProject[]);
+}
+
+function saveLocalTrackLabProjects(songId: string, projects: LocalTrackLabProject[]): void {
+  writeJson(trackLabKey(songId), projects);
+}
+
+export function upsertLocalTrackLabProject(project: LocalTrackLabProject): void {
+  const projects = getLocalTrackLabProjects(project.songId);
+  const idx = projects.findIndex((p) => p.projectId === project.projectId);
+  if (idx >= 0) projects[idx] = project;
+  else projects.push(project);
+  saveLocalTrackLabProjects(project.songId, projects);
+}
+
+export function setLocalTrackLabProjectArchived(songId: string, projectId: string, archived: boolean): void {
+  const projects = getLocalTrackLabProjects(songId);
+  const idx = projects.findIndex((p) => p.projectId === projectId);
+  if (idx < 0) return;
+  projects[idx] = {
+    ...projects[idx],
+    archivedAt: archived ? new Date().toISOString() : null,
+    updatedAt: new Date().toISOString(),
+  };
+  saveLocalTrackLabProjects(songId, projects);
+}
+
+export function renameLocalTrackLabProject(songId: string, projectId: string, name: string): void {
+  const trimmed = name.trim();
+  if (!trimmed) throw new Error('Project name cannot be empty.');
+  const projects = getLocalTrackLabProjects(songId);
+  const idx = projects.findIndex((p) => p.projectId === projectId);
+  if (idx < 0) throw new Error('Project not found.');
+  projects[idx] = { ...projects[idx], name: trimmed, updatedAt: new Date().toISOString() };
+  saveLocalTrackLabProjects(songId, projects);
+}
+
+export function deleteLocalTrackLabProjectsForSong(songId: string): void {
+  if (typeof window !== 'undefined') window.localStorage.removeItem(trackLabKey(songId));
+}
+
 export const BACKUP_FORMAT = 'provenance-v2-backup';
 /**
  * v1: songs/notes/metadata only.
@@ -245,8 +296,10 @@ export interface BackupFile {
   metadata: Record<string, WorkMetadataItem[]>;
   profile: LocalProfile;
   pluginSettings: Record<string, Record<string, unknown>>;
-  /** Recording metadata per song (v2+). */
+  /** Recording metadata per song (v2+; includes Track Lab track recordings). */
   recordings?: Record<string, Recording[]>;
+  /** Track Lab project metadata per song (v2+). */
+  trackLabProjects?: Record<string, LocalTrackLabProject[]>;
   /** Base64 audio payload per recordingId (v2+). */
   audioData?: Record<string, string>;
 }
@@ -258,12 +311,15 @@ export async function buildBackup(): Promise<BackupFile> {
   const metadata: Record<string, WorkMetadataItem[]> = {};
   const recordings: Record<string, Recording[]> = {};
   const audioData: Record<string, string> = {};
+  const trackLabProjects: Record<string, LocalTrackLabProject[]> = {};
   for (const summary of index) {
     const detail = getSongDetail(summary.songId);
     if (detail) {
       songs.push(detail);
       notes[summary.songId] = getNotes(summary.songId);
       metadata[summary.songId] = getMetadataItems(summary.songId);
+      const projects = getLocalTrackLabProjects(summary.songId);
+      if (projects.length > 0) trackLabProjects[summary.songId] = projects;
     }
   }
   try {
@@ -298,6 +354,7 @@ export async function buildBackup(): Promise<BackupFile> {
     pluginSettings,
     recordings,
     audioData,
+    trackLabProjects,
   };
 }
 
@@ -328,6 +385,9 @@ export async function restoreBackup(raw: string): Promise<RestoreResult> {
     upsertIndexEntry(song);
     if (parsed.notes?.[song.songId]) saveNotes(song.songId, parsed.notes[song.songId]);
     if (parsed.metadata?.[song.songId]) saveMetadataItems(song.songId, parsed.metadata[song.songId]);
+    if (Array.isArray(parsed.trackLabProjects?.[song.songId])) {
+      writeJson(trackLabKey(song.songId), parsed.trackLabProjects[song.songId]);
+    }
     restored++;
     // v2+: restore this song's recordings (audio payload required; skip entries without it).
     const recs = parsed.recordings?.[song.songId];

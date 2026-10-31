@@ -848,8 +848,11 @@ function SongEditorPageInner() {
               setAudioPlayerOpen(true);
             });
           }}
-          onOpenTrackLabProject={() => {
-            toast.info('Track Lab is not part of this local-only version yet. It returns in a later update.');
+          onOpenTrackLabProject={(project) => {
+            setRecordingSectionIdForModal(null);
+            setRecordingLabelForModal(null);
+            setTrackLabProjectToOpen(project);
+            setAudioRecorderOpen(true);
           }}
           contentRef={chordChartsExportRef}
           onRequestVoicingChange={(chordId, symbol, voicingId) =>
@@ -1132,6 +1135,12 @@ function SongEditorPageInner() {
         onOpenAddVideo={() => setRecordVideoDrawerOpen(true)}
         onOpenAddAudio={() => setRecordAudioDrawerOpen(true)}
         onOpenMetadata={() => setMetadataModalOpen(true)}
+        onOpenTrackLab={() => {
+          setRecordingSectionIdForModal(null);
+          setRecordingLabelForModal(null);
+          setTrackLabProjectToOpen(null);
+          setAudioRecorderOpen(true);
+        }}
         isReadOnly={isReadOnly}
       />
 

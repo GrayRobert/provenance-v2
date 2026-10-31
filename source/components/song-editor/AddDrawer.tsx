@@ -1,6 +1,6 @@
 'use client';
 
-import { FileAudio, Video, Camera, StickyNote, Tags } from 'lucide-react';
+import { AudioLines, FileAudio, Video, Camera, StickyNote, Tags } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Drawer,
@@ -25,6 +25,8 @@ export interface AddDrawerProps {
   onOpenAddAudio?: () => void;
   /** When "Add Metadata" is clicked, open the metadata modal (caller renders MetadataModal). */
   onOpenMetadata?: () => void;
+  /** When "Track Lab" is clicked, open Track Lab in new-project mode (caller renders AudioRecorderModal). */
+  onOpenTrackLab?: () => void;
   isReadOnly?: boolean;
 }
 
@@ -36,6 +38,7 @@ export function AddDrawer({
   onOpenAddVideo,
   onOpenAddAudio,
   onOpenMetadata,
+  onOpenTrackLab,
   isReadOnly = false,
 }: AddDrawerProps) {
   const handleAddMetadata = () => {
@@ -83,6 +86,15 @@ export function AddDrawer({
     }
   };
 
+  const handleTrackLab = () => {
+    onOpenChange(false);
+    if (onOpenTrackLab) {
+      onOpenTrackLab();
+    } else {
+      toast(NOT_IMPLEMENTED_MESSAGE);
+    }
+  };
+
   const handleNotImplemented = () => {
     toast(NOT_IMPLEMENTED_MESSAGE);
     onOpenChange(false);
@@ -108,6 +120,13 @@ export function AddDrawer({
             label="Add Video"
             description="Record or upload a video clip"
             onClick={handleAddVideo}
+            disabled={isReadOnly}
+          />
+          <AddOption
+            icon={<AudioLines className="size-5" />}
+            label="Track Lab"
+            description="Multitrack recording and mixing"
+            onClick={handleTrackLab}
             disabled={isReadOnly}
           />
           <AddOption

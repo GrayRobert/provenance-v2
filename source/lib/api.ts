@@ -46,6 +46,11 @@ import {
   tokenAtAbsoluteCharOffset,
 } from './song-state-updaters';
 import {
+  deleteLocalTrackLabProjectsForSong,
+  getLocalTrackLabProjects,
+  renameLocalTrackLabProject,
+  setLocalTrackLabProjectArchived,
+  upsertLocalTrackLabProject,
   LOCAL_USER_ID,
   createSongRecord,
   estimateUsedBytes,
@@ -73,6 +78,7 @@ import {
   deleteLocalRecordingsForSong,
   getCachedRecordingUrl,
   listLocalRecordings,
+  archiveActiveProjectTrackRecording,
   renameLocalRecording,
   saveLocalRecording,
   setLocalRecordingArchived,
@@ -559,6 +565,7 @@ export const songApi = {
   },
   deleteSong: async (songId: string): Promise<void> => {
     removeSongRecord(songId);
+    deleteLocalTrackLabProjectsForSong(songId);
     await deleteLocalRecordingsForSong(songId);
   },
 
@@ -577,16 +584,79 @@ export const songApi = {
     const rec = await saveLocalRecording(songId, blob, options ?? {});
     return { recordingId: rec.recordingId };
   },
-  uploadMixdown: async (..._args: unknown[]): Promise<{ recordingId: string }> => {
-    throw NOT_IN_LOCAL('Recording');
+  uploadMixdown: async (
+    songId: string,
+    blob: Blob,
+    options: { durationSeconds?: number; label?: string } = {}
+  ): Promise<{ recordingId: string }> => {
+    requireSong(songId);
+    const rec = await saveLocalRecording(songId, blob, {
+      trackIndex: 0,
+      label: options.label,
+      labelIsCustom: true,
+      durationSeconds: options.durationSeconds,
+    });
+    return { recordingId: rec.recordingId };
   },
-  getTrackLabProjects: async (_songId: string): Promise<TrackLabProject[]> => [],
-  saveTrackLabProject: async (..._args: unknown[]): Promise<{ projectId: string }> => {
-    throw NOT_IN_LOCAL('Track Lab');
+  getTrackLabProjects: async (songId: string): Promise<TrackLabProject[]> => {
+    const recordings = await listLocalRecordings(songId);
+    const projects = getLocalTrackLabProjects(songId);
+    return projects.map((p) => ({
+      ...p,
+      recordings: recordings
+        .filter((r) => r.projectId === p.projectId && !r.archivedAt)
+        .sort((a, b) => a.trackIndex - b.trackIndex),
+    }));
   },
-  archiveTrackLabProject: async (..._args: unknown[]): Promise<void> => {},
-  unarchiveTrackLabProject: async (..._args: unknown[]): Promise<void> => {},
-  updateTrackLabProjectName: async (..._args: unknown[]): Promise<void> => {},
+  saveTrackLabProject: async (
+    songId: string,
+    name: string,
+    projectData: string,
+    tracks: Array<{ trackIndex: number; label: string | null; durationSeconds: number | null; blob: Blob }>,
+    projectId?: string | null
+  ): Promise<{ projectId: string }> => {
+    requireSong(songId);
+    const now = new Date().toISOString();
+    let project =
+      (projectId ? getLocalTrackLabProjects(songId).find((p) => p.projectId === projectId) : undefined) ??
+      null;
+    if (projectId && !project) throw new Error('Project not found.');
+    if (!project) {
+      project = {
+        projectId: crypto.randomUUID(),
+        songId,
+        name,
+        projectData,
+        createdAt: now,
+        updatedAt: now,
+        archivedAt: null,
+      };
+    }
+    for (const track of tracks) {
+      if (!track.blob || track.blob.size === 0) continue;
+      if (projectId) {
+        // Backend parity: saving a new take on a track archives the previous active one.
+        await archiveActiveProjectTrackRecording(project.projectId, track.trackIndex);
+      }
+      await saveLocalRecording(songId, track.blob, {
+        trackIndex: track.trackIndex,
+        label: track.label ?? undefined,
+        durationSeconds: track.durationSeconds ?? undefined,
+        projectId: project.projectId,
+      });
+    }
+    upsertLocalTrackLabProject({ ...project, name, projectData, updatedAt: now });
+    return { projectId: project.projectId };
+  },
+  archiveTrackLabProject: async (songId: string, projectId: string): Promise<void> => {
+    setLocalTrackLabProjectArchived(songId, projectId, true);
+  },
+  unarchiveTrackLabProject: async (songId: string, projectId: string): Promise<void> => {
+    setLocalTrackLabProjectArchived(songId, projectId, false);
+  },
+  updateTrackLabProjectName: async (songId: string, projectId: string, name: string): Promise<void> => {
+    renameLocalTrackLabProject(songId, projectId, name);
+  },
 };
 
 /* ---------- tours (local) ---------- */
