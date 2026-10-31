@@ -4,7 +4,7 @@
  */
 
 import { createAudioEngine, extractWaveformRange, getPyramidPeaks } from './audioEngine';
-import { levelToDbText } from './meterUtils';
+import { levelToDbText, levelToMeterScale, peakFromFloatTimeDomain, createPeakBallistics } from './meterUtils';
 import {
   barBeatToSeconds,
   getGridLines,
@@ -64,7 +64,8 @@ const AUTOSCROLL_LEFT_OFFSET_PX = 12;
 const DEVICE_LOAD_TIMEOUT_MS = 10_000;
 
 function buildLevelMeterSegments(level: number, segments = LEVEL_METER_SEGMENTS): string {
-  const active = Math.round(level * segments);
+  /* dB-scaled so normal recording levels read clearly (see meterUtils.levelToMeterScale). */
+  const active = Math.round(levelToMeterScale(level) * segments);
   let html = '';
   for (let i = 0; i < segments; i++) {
     const ratio = i / segments;
@@ -89,7 +90,8 @@ function buildLedGridMeter(container: HTMLElement, segmentCount: number): void {
 }
 
 function updateLedGridMeter(container: HTMLElement, level: number, segmentCount: number): void {
-  const active = Math.round(level * segmentCount);
+  /* dB-scaled so normal recording levels read clearly (see meterUtils.levelToMeterScale). */
+  const active = Math.round(levelToMeterScale(level) * segmentCount);
   const segs = container.querySelectorAll('.ar-led-seg');
   for (let i = 0; i < segs.length; i++) {
     const el = segs[i] as HTMLElement;
@@ -1439,6 +1441,8 @@ export function mountAudioRecorder(
     let previewAnalyser: AnalyserNode | null = null;
     let previewRafId = 0;
     const data = new Uint8Array(256);
+    let floatData: Float32Array<ArrayBuffer> | null = null;
+    const previewBallistics = createPeakBallistics();
 
     function stopPreview() {
       if (previewRafId) cancelAnimationFrame(previewRafId);
@@ -1499,13 +1503,22 @@ export function mountAudioRecorder(
       if (!previewRafId) {
         function tick() {
           if (!previewAnalyser) return;
-          previewAnalyser.getByteTimeDomainData(data);
           let max = 0;
-          for (let i = 0; i < data.length; i++) {
-            const val = Math.abs(data[i] - 128) / 128;
-            if (val > max) max = val;
+          if (typeof previewAnalyser.getFloatTimeDomainData === 'function') {
+            if (!floatData || floatData.length !== previewAnalyser.fftSize) {
+              floatData = new Float32Array(previewAnalyser.fftSize);
+            }
+            previewAnalyser.getFloatTimeDomainData(floatData);
+            max = peakFromFloatTimeDomain(floatData);
+          } else {
+            previewAnalyser.getByteTimeDomainData(data);
+            for (let i = 0; i < data.length; i++) {
+              const val = Math.abs(data[i] - 128) / 128;
+              if (val > max) max = val;
+            }
           }
-          updateMeter(max);
+          /* Same ballistics as the footer meters so peaks hold briefly instead of flickering. */
+          updateMeter(previewBallistics.sample(max, typeof performance !== 'undefined' ? performance.now() : Date.now()));
           previewRafId = requestAnimationFrame(tick);
         }
         tick();

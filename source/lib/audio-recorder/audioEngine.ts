@@ -4,7 +4,7 @@
  */
 
 import type { AudioEngineState, AudioRegion, ExportRecordingItem, InputMonitoringMode, TrackState, WaveformPyramid } from './types';
-import { peakFromByteTimeDomain } from './meterUtils';
+import { peakFromByteTimeDomain, peakFromFloatTimeDomain, createPeakBallistics } from './meterUtils';
 
 const TRACK_COLORS = ['#f6992c', '#22c55e', '#3b82f6', '#a855f7']; /* orange, green, blue, purple */
 
@@ -305,10 +305,16 @@ export function createAudioEngine() {
   let startTime = 0;
   /** Timeline position (seconds) when the current recording started; used when creating the region so it stays at the record start, not at stop time. */
   let recordingStartTimelinePosition = 0;
-  /** Throttle input level setState to ~10fps to avoid 60fps subscription → updateUI → forced reflow storm when Track Lab is open. */
+  /** Publish meter levels at ~30fps: level setStates only notify the meter listeners (no full updateUI reflow), so this stays cheap while looking as lively as the settings level meter. */
   let lastInputLevelUpdateMs = 0;
   let lastMasterLevelUpdateMs = 0;
-  const INPUT_LEVEL_THROTTLE_MS = 100;
+  const INPUT_LEVEL_THROTTLE_MS = 33;
+  /** Reusable analyser read buffers (float preferred; byte fallback for engines without getFloatTimeDomainData). */
+  const inputMeterBuffers: { float: Float32Array<ArrayBuffer> | null; byte: Uint8Array<ArrayBuffer> | null } = { float: null, byte: null };
+  const masterMeterBuffers: { float: Float32Array<ArrayBuffer> | null; byte: Uint8Array<ArrayBuffer> | null } = { float: null, byte: null };
+  /** Peak ballistics: instant attack, ~1s release, so transients register instead of vanishing between samples. */
+  const inputMeterBallistics = createPeakBallistics();
+  const masterMeterBallistics = createPeakBallistics();
   let metronomeInterval: ReturnType<typeof setInterval> | null = null;
   let countInInterval: ReturnType<typeof setInterval> | null = null;
   let playbackStart = 0;
@@ -848,6 +854,21 @@ export function createAudioEngine() {
     }
   }
 
+  /** Peak of the analyser's current window; float time-domain when available (finer near the noise floor), byte otherwise. */
+  function readAnalyserPeak(
+    a: AnalyserNode,
+    buffers: { float: Float32Array<ArrayBuffer> | null; byte: Uint8Array<ArrayBuffer> | null }
+  ): number {
+    if (typeof a.getFloatTimeDomainData === 'function') {
+      if (!buffers.float || buffers.float.length !== a.fftSize) buffers.float = new Float32Array(a.fftSize);
+      a.getFloatTimeDomainData(buffers.float);
+      return peakFromFloatTimeDomain(buffers.float);
+    }
+    if (!buffers.byte || buffers.byte.length !== a.frequencyBinCount) buffers.byte = new Uint8Array(a.frequencyBinCount);
+    a.getByteTimeDomainData(buffers.byte);
+    return peakFromByteTimeDomain(buffers.byte);
+  }
+
   function updateInputLevel() {
     /* Dedup: cancel any pending frame so a second start (sustained stream vs recording) never spawns parallel loops sharing animFrameId. */
     if (animFrameId) {
@@ -855,13 +876,12 @@ export function createAudioEngine() {
       animFrameId = 0;
     }
     if (!analyser) return;
-    const data = new Uint8Array(analyser.frequencyBinCount);
-    analyser.getByteTimeDomainData(data);
-    const max = peakFromByteTimeDomain(data);
+    const peak = readAnalyserPeak(analyser, inputMeterBuffers);
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const display = inputMeterBallistics.sample(peak, now);
     if (now - lastInputLevelUpdateMs >= INPUT_LEVEL_THROTTLE_MS) {
       lastInputLevelUpdateMs = now;
-      setState({ inputLevel: max });
+      setState({ inputLevel: display });
     }
     animFrameId = requestAnimationFrame(updateInputLevel);
   }
@@ -870,11 +890,11 @@ export function createAudioEngine() {
   function sampleMasterOutputLevel() {
     if (!masterAnalyser) return;
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
+    const peak = readAnalyserPeak(masterAnalyser, masterMeterBuffers);
+    const display = masterMeterBallistics.sample(peak, now);
     if (now - lastMasterLevelUpdateMs < INPUT_LEVEL_THROTTLE_MS) return;
     lastMasterLevelUpdateMs = now;
-    const data = new Uint8Array(masterAnalyser.frequencyBinCount);
-    masterAnalyser.getByteTimeDomainData(data);
-    setState({ masterOutputLevel: peakFromByteTimeDomain(data) });
+    setState({ masterOutputLevel: display });
   }
 
   /** iOS Safari can refuse AudioContext.resume() outside a user gesture (e.g. after awaiting getUserMedia). Retry on the user's next tap so recording/metering actually gets signal. */

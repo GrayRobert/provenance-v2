@@ -6,7 +6,7 @@
  * These cover the shared metering helpers and the engine's master-level subscription surface.
  */
 import { describe, it, expect } from 'vitest';
-import { peakFromByteTimeDomain, levelToDbText } from '@/lib/audio-recorder/meterUtils';
+import { peakFromByteTimeDomain, peakFromFloatTimeDomain, levelToMeterScale, levelToDbText, createPeakBallistics, METER_FLOOR_DB } from '@/lib/audio-recorder/meterUtils';
 import { createAudioEngine } from '@/lib/audio-recorder/audioEngine';
 
 describe('peakFromByteTimeDomain', () => {
@@ -62,5 +62,70 @@ describe('audio engine master output level surface', () => {
     unsub();
     // No public setter for masterOutputLevel; just ensure unsubscribe does not throw and list is detached.
     expect(seen).toEqual([]);
+  });
+});
+
+describe('peakFromFloatTimeDomain', () => {
+  it('returns 0 for silence', () => {
+    expect(peakFromFloatTimeDomain(new Float32Array(1024))).toBe(0);
+  });
+  it('returns the absolute peak', () => {
+    const d = new Float32Array(1024);
+    d[5] = 0.25;
+    d[9] = -0.5;
+    expect(peakFromFloatTimeDomain(d)).toBeCloseTo(0.5, 6);
+  });
+  it('resolves quiet signals below the byte-data floor', () => {
+    /* Byte data quantizes to 1/128 (~-42dB); float must still see -50dB. */
+    const d = new Float32Array(1024);
+    d[3] = Math.pow(10, -50 / 20);
+    expect(peakFromFloatTimeDomain(d)).toBeCloseTo(Math.pow(10, -50 / 20), 6);
+  });
+});
+
+describe('levelToMeterScale', () => {
+  it('maps silence and levels at/below the floor to 0', () => {
+    expect(levelToMeterScale(0)).toBe(0);
+    expect(levelToMeterScale(Math.pow(10, METER_FLOOR_DB / 20))).toBe(0);
+    expect(levelToMeterScale(Math.pow(10, -70 / 20))).toBe(0);
+  });
+  it('maps full scale to 1 and clamps above it', () => {
+    expect(levelToMeterScale(1)).toBe(1);
+    expect(levelToMeterScale(2)).toBe(1);
+  });
+  it('maps -20dB (a normal recording level) to about two thirds of the bar', () => {
+    expect(levelToMeterScale(0.1)).toBeCloseTo((-20 - METER_FLOOR_DB) / -METER_FLOOR_DB, 5);
+  });
+  it('maps -6dB to 0.9 of the bar', () => {
+    expect(levelToMeterScale(0.5)).toBeCloseTo(0.9, 1);
+  });
+});
+
+describe('createPeakBallistics', () => {
+  it('attacks instantly to a new peak', () => {
+    const b = createPeakBallistics(1);
+    expect(b.sample(0.8, 0)).toBe(0.8);
+  });
+  it('decays linearly with elapsed time', () => {
+    const b = createPeakBallistics(1);
+    b.sample(1, 0);
+    expect(b.sample(0, 500)).toBeCloseTo(0.5, 5);
+    expect(b.sample(0, 1500)).toBe(0);
+  });
+  it('does not go below the current peak while decaying', () => {
+    const b = createPeakBallistics(1);
+    b.sample(1, 0);
+    expect(b.sample(0.9, 100)).toBe(0.9);
+  });
+  it('self-corrects after a long gap (stale peaks decay away)', () => {
+    const b = createPeakBallistics(1);
+    b.sample(1, 0);
+    expect(b.sample(0, 60_000)).toBe(0);
+  });
+  it('reset returns the display to silence', () => {
+    const b = createPeakBallistics(1);
+    b.sample(1, 0);
+    b.reset();
+    expect(b.sample(0, 100)).toBe(0);
   });
 });
