@@ -10,6 +10,14 @@
 
 Provenance is a web app for writing songs: lyrics, chords, structure, and recordings, all in one place. What makes it different is the history: as you work, the app logs events for the song - lyric and section edits, chord and note changes, recordings - into a hash-chained local record. On the song's timeline page it re-checks that chain and flags the history if the stored events no longer match it. A printable Song History certificate exports the record as a PDF.
 
+## How it was built
+
+I haven't written a single line of this project's code by hand. As a product designer, engineer and manager, I've fully embraced AI-first programming. Provenance is a project I've developed through that approach, not a claim of hand-written implementation.
+
+The original hosted version was developed using an agentic pipeline of Cursor, GitHub and Linear for project and feature tickets, with Vercel v0 for some UI components.
+
+Version 2 ports the app to a local, client-side model so the project can continue without ongoing backend hosting. That port was completed in a few hours through a conversation with [Instinct](https://instinct.com/).
+
 ## Screenshots
 
 ![Song editor with lyrics, chords and section structure](https://github.com/user-attachments/assets/ec523241-4280-4db9-a8e9-9db800b810a2)
