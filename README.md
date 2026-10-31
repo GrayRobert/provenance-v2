@@ -40,7 +40,9 @@ Song text, history, and recordings are stored on your device: text and history i
 
 ## What the history is (and isn't)
 
-Timestamps come from the device clock, and profile details on exports are supplied by the songwriter. The hash-chain check runs on your own device and tells you whether the stored history still matches its chain - it can flag tampering or corruption of that local record, but it is not independent proof of authorship or time, and it is not copyright registration.
+The song history is a proof of concept. Its hash-chained record lives entirely in browser storage. It can flag mismatches, but someone with access to that storage can rewrite both the events and the chain, so it isn't tamper-proof. Device timestamps and self-supplied author details aren't independent proof of authorship or time, or copyright registration.
+
+The original hosted app implemented RFC 3161 timestamping, allowing certificate snapshots to receive a signed timestamp from an external authority. The longer-term goal was immutable Web3 storage as an optional paid feature. Neither is included in this local version. Provenance doesn't depend on them: its first job is to inspire songwriters and help them turn ideas into songs. The history supports the writing, not the other way around.
 
 ## Tech
 
