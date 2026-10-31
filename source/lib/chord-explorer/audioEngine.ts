@@ -78,7 +78,7 @@ function noteUpOneOctave(note: string): string {
 
 /** Grand piano: local samples from public/salamander/ (run: node scripts/fetch-salamander-piano.js) */
 const SALAMANDER_SAMPLES = {
-  baseUrl: '/salamander/',
+  baseUrl: '/provenance-v2/salamander/',
   urls: {
     'A0': 'A0.mp3', 'C1': 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
     'A1': 'A1.mp3', 'C2': 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
@@ -96,7 +96,7 @@ const SALAMANDER_SAMPLES = {
  * Samples are declared one octave higher so playback matches grand piano pitch (samples were recorded an octave high).
  */
 const FELTED_PIANO_SAMPLES = {
-  baseUrl: '/felt-piano/',
+  baseUrl: '/provenance-v2/felt-piano/',
   urls: (() => {
     const raw: Record<string, string> = {
       'C0': 'C0.mp3', 'G0': 'G0.mp3', 'A1': 'A1.mp3', 'D1': 'D1.mp3',
@@ -120,7 +120,7 @@ const RHODES_NOTE_NAMES = [
 ];
 /** Rhodes samples declared one octave higher so playback matches grand piano pitch. */
 const RHODES_SAMPLES = {
-  baseUrl: '/rhodes/',
+  baseUrl: '/provenance-v2/rhodes/',
   urls: Object.fromEntries(
     RHODES_NOTE_NAMES.map((note) => [
       noteUpOneOctave(note),
@@ -138,7 +138,7 @@ const ACOUSTIC_GUITAR_NOTE_NAMES = [
 ];
 /** Acoustic guitar samples declared one octave higher so playback matches grand piano pitch. */
 const ACOUSTIC_GUITAR_SAMPLES = {
-  baseUrl: '/acc-guitar/',
+  baseUrl: '/provenance-v2/acc-guitar/',
   urls: Object.fromEntries(
     ACOUSTIC_GUITAR_NOTE_NAMES.map((note) => [
       noteUpOneOctave(note),

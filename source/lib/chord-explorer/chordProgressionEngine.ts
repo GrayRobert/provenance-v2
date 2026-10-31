@@ -34,9 +34,9 @@ export interface MetronomeType {
 /** All metronome types. Slider 0 dB is benchmark; compensationDb keeps relative levels correct. */
 export const METRONOME_TYPES: MetronomeType[] = [
   { id: 'sub-kick', name: 'Sub-kick', sample: null, compensationDb: 10 },
-  { id: 'thump', name: 'Thump', sample: '/metronome/thump.mp3', compensationDb: -5 },
-  { id: 'wood-1', name: 'Wood', sample: '/metronome/wood-1.mp3', compensationDb: -10 },
-  { id: 'finger-snap-2', name: 'Finger snap', sample: '/metronome/finger-snap-2.mp3', compensationDb: -15 },
+  { id: 'thump', name: 'Thump', sample: '/provenance-v2/metronome/thump.mp3', compensationDb: -5 },
+  { id: 'wood-1', name: 'Wood', sample: '/provenance-v2/metronome/wood-1.mp3', compensationDb: -10 },
+  { id: 'finger-snap-2', name: 'Finger snap', sample: '/provenance-v2/metronome/finger-snap-2.mp3', compensationDb: -15 },
 ];
 
 // ===========================

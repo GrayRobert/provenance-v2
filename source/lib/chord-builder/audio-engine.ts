@@ -21,7 +21,7 @@ function noteUpOneOctave(note: string): string {
 
 /** Salamander grand piano: public/salamander (run: node scripts/fetch-salamander-piano.js) */
 const SALAMANDER_SAMPLES = {
-  baseUrl: '/salamander/',
+  baseUrl: '/provenance-v2/salamander/',
   urls: {
     'A0': 'A0.mp3', 'C1': 'C1.mp3', 'D#1': 'Ds1.mp3', 'F#1': 'Fs1.mp3',
     'A1': 'A1.mp3', 'C2': 'C2.mp3', 'D#2': 'Ds2.mp3', 'F#2': 'Fs2.mp3',
@@ -42,7 +42,7 @@ const ACOUSTIC_GUITAR_NOTE_NAMES = [
   'G#1', 'G#2', 'G#3', 'G#4', 'G1', 'G2', 'G3', 'G4',
 ];
 const ACOUSTIC_GUITAR_SAMPLES = {
-  baseUrl: '/acc-guitar/',
+  baseUrl: '/provenance-v2/acc-guitar/',
   urls: Object.fromEntries(
     ACOUSTIC_GUITAR_NOTE_NAMES.map((note) => [
       noteUpOneOctave(note),
