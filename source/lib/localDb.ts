@@ -4,7 +4,13 @@
  * All song data lives in localStorage. Nothing here talks to a server.
  * The backup/restore functions serialize the whole workspace to one JSON file.
  */
-import type { Note, SongDetail, SongSummary, WorkMetadataItem } from './types';
+import type { Note, Recording, SongDetail, SongSummary, WorkMetadataItem } from './types';
+import {
+  base64ToBlob,
+  blobToBase64,
+  importStoredRecording,
+  listAllStoredRecordings,
+} from './localRecordings';
 
 const PREFIX = 'prov2.';
 const SONGS_INDEX_KEY = `${PREFIX}songs`;
@@ -223,7 +229,12 @@ export function estimateUsedBytes(): number {
 /* ---------- backup / restore ---------- */
 
 export const BACKUP_FORMAT = 'provenance-v2-backup';
-export const BACKUP_VERSION = 1;
+/**
+ * v1: songs/notes/metadata only.
+ * v2: adds recordings metadata + base64 audio (recordings/audioData).
+ * v1 backups still restore; the audio fields are simply absent.
+ */
+export const BACKUP_VERSION = 2;
 
 export interface BackupFile {
   format: typeof BACKUP_FORMAT;
@@ -234,13 +245,19 @@ export interface BackupFile {
   metadata: Record<string, WorkMetadataItem[]>;
   profile: LocalProfile;
   pluginSettings: Record<string, Record<string, unknown>>;
+  /** Recording metadata per song (v2+). */
+  recordings?: Record<string, Recording[]>;
+  /** Base64 audio payload per recordingId (v2+). */
+  audioData?: Record<string, string>;
 }
 
-export function buildBackup(): BackupFile {
+export async function buildBackup(): Promise<BackupFile> {
   const index = listSongIndex();
   const songs: SongDetail[] = [];
   const notes: Record<string, LocalNote[]> = {};
   const metadata: Record<string, WorkMetadataItem[]> = {};
+  const recordings: Record<string, Recording[]> = {};
+  const audioData: Record<string, string> = {};
   for (const summary of index) {
     const detail = getSongDetail(summary.songId);
     if (detail) {
@@ -248,6 +265,18 @@ export function buildBackup(): BackupFile {
       notes[summary.songId] = getNotes(summary.songId);
       metadata[summary.songId] = getMetadataItems(summary.songId);
     }
+  }
+  try {
+    const stored = await listAllStoredRecordings();
+    const songIds = new Set(songs.map((song) => song.songId));
+    for (const rec of stored) {
+      if (!songIds.has(rec.songId) || !rec.blob) continue;
+      const { blob, ...meta } = rec;
+      (recordings[rec.songId] ??= []).push(meta);
+      audioData[rec.recordingId] = await blobToBase64(blob);
+    }
+  } catch {
+    // IndexedDB unavailable (e.g. restricted browser mode): export without audio.
   }
   const pluginSettings: Record<string, Record<string, unknown>> = {};
   if (typeof window !== 'undefined') {
@@ -267,6 +296,8 @@ export function buildBackup(): BackupFile {
     metadata,
     profile: getLocalProfile(),
     pluginSettings,
+    recordings,
+    audioData,
   };
 }
 
@@ -274,7 +305,7 @@ export interface RestoreResult {
   songsRestored: number;
 }
 
-export function restoreBackup(raw: string): RestoreResult {
+export async function restoreBackup(raw: string): Promise<RestoreResult> {
   let parsed: BackupFile;
   try {
     parsed = JSON.parse(raw) as BackupFile;
@@ -298,6 +329,23 @@ export function restoreBackup(raw: string): RestoreResult {
     if (parsed.notes?.[song.songId]) saveNotes(song.songId, parsed.notes[song.songId]);
     if (parsed.metadata?.[song.songId]) saveMetadataItems(song.songId, parsed.metadata[song.songId]);
     restored++;
+    // v2+: restore this song's recordings (audio payload required; skip entries without it).
+    const recs = parsed.recordings?.[song.songId];
+    if (Array.isArray(recs)) {
+      for (const rec of recs) {
+        if (!rec || typeof rec.recordingId !== 'string') continue;
+        const b64 = parsed.audioData?.[rec.recordingId];
+        if (typeof b64 !== 'string') continue;
+        try {
+          await importStoredRecording(
+            { ...rec, songId: song.songId },
+            base64ToBlob(b64, rec.mimeType || 'audio/webm')
+          );
+        } catch {
+          // IndexedDB unavailable: skip audio, keep the songs.
+        }
+      }
+    }
   }
   if (parsed.pluginSettings && typeof parsed.pluginSettings === 'object') {
     for (const [pluginId, settings] of Object.entries(parsed.pluginSettings)) {

@@ -216,11 +216,12 @@ function useAuthRecordingUrl(songId: string, recordingId: string | null) {
       const token =
         (typeof window !== 'undefined' ? await getClerkToken() : null) ??
         (typeof window !== 'undefined' ? localStorage.getItem('jwt') : null);
-      if (!token || cancelled) {
-        if (!cancelled) setSrc(null);
+      const artifactUrl = songApi.getRecordingArtifactUrl(songId, recordingId);
+      if (!token) {
+        // Local-first build: the artifact URL is already a playable blob: URL.
+        if (!cancelled) setSrc(artifactUrl === '#' ? null : artifactUrl);
         return;
       }
-      const artifactUrl = songApi.getRecordingArtifactUrl(songId, recordingId);
       try {
         const res = await fetch(artifactUrl, {
           signal: ac.signal,

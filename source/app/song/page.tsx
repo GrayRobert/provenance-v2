@@ -172,6 +172,7 @@ function SongEditorPageInner() {
   const [scanLyricsDrawerOpen, setScanLyricsDrawerOpen] = useState(false);
   const [recordVideoDrawerOpen, setRecordVideoDrawerOpen] = useState(false);
   const [recordAudioDrawerOpen, setRecordAudioDrawerOpen] = useState(false);
+  const [recordDrawerTarget, setRecordDrawerTarget] = useState<{ sectionId: string; label: string } | null>(null);
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [notesModalNoteId, setNotesModalNoteId] = useState<string | null>(null);
   const [metadataModalOpen, setMetadataModalOpen] = useState(false);
@@ -775,8 +776,9 @@ function SongEditorPageInner() {
               setChordBuilderInsertContext={setChordBuilderInsertContext}
               focusSectionLabelForSectionId={focusSectionLabelForSectionId}
               onFocusSectionLabelDone={() => setFocusSectionLabelForSectionId(null)}
-              onOpenSectionRecord={() => {
-                toast.info('Recording is not part of this local-only version yet. It returns in a later update.');
+              onOpenSectionRecord={(sectionId, label) => {
+                setRecordDrawerTarget({ sectionId, label });
+                setRecordAudioDrawerOpen(true);
               }}
               runWithPluginGate={runWithPluginGate}
               primarySectionRecording={primaryBySectionId[section.sectionId]}
@@ -847,7 +849,7 @@ function SongEditorPageInner() {
             });
           }}
           onOpenTrackLabProject={() => {
-            toast.info('Recording is not part of this local-only version yet. It returns in a later update.');
+            toast.info('Track Lab is not part of this local-only version yet. It returns in a later update.');
           }}
           contentRef={chordChartsExportRef}
           onRequestVoicingChange={(chordId, symbol, voicingId) =>
@@ -1082,7 +1084,8 @@ function SongEditorPageInner() {
         addDrawerOpen={addDrawerOpen}
         onAddClick={() => setAddDrawerOpen((o) => !o)}
         onRecordClick={() => {
-          toast.info('Recording is not part of this local-only version yet. It returns in a later update.');
+          setRecordDrawerTarget(null);
+          setRecordAudioDrawerOpen(true);
         }}
         isReadOnly={isReadOnly}
       />
@@ -1149,8 +1152,13 @@ function SongEditorPageInner() {
       {songId && (
         <RecordAudioDrawer
           open={recordAudioDrawerOpen}
-          onOpenChange={setRecordAudioDrawerOpen}
+          onOpenChange={(open) => {
+            setRecordAudioDrawerOpen(open);
+            if (!open) setRecordDrawerTarget(null);
+          }}
           songId={songId}
+          sectionId={recordDrawerTarget?.sectionId ?? null}
+          recordingLabel={recordDrawerTarget?.label ?? null}
           onSuccess={() => {
             setArtifactsRefreshKey((k) => k + 1);
             loadSong();

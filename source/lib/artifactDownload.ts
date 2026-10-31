@@ -39,7 +39,12 @@ export async function downloadWithAuth(url: string, filename: string): Promise<v
     (typeof window !== 'undefined' ? await getClerkToken() : null) ??
     (typeof window !== 'undefined' ? localStorage.getItem('jwt') : null);
   if (!token) {
-    throw new Error('Sign in to download');
+    // Local-first build: artifact URLs are same-origin blob: URLs needing no auth.
+    if (!url || url === '#') throw new Error('File is not available yet');
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Download failed (${res.status})`);
+    triggerBlobDownload(await res.blob(), filename);
+    return;
   }
   const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (!res.ok) {

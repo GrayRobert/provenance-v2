@@ -20,6 +20,10 @@ export interface RecordAudioDrawerProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   songId: string;
+  /** When set, the recording is attached to this section (one primary per section). */
+  sectionId?: string | null;
+  /** Display label, e.g. the section title. */
+  recordingLabel?: string | null;
   onSuccess: () => void;
 }
 
@@ -27,6 +31,8 @@ export function RecordAudioDrawer({
   open,
   onOpenChange,
   songId,
+  sectionId = null,
+  recordingLabel = null,
   onSuccess,
 }: RecordAudioDrawerProps) {
   const streamRef = useRef<MediaStream | null>(null);
@@ -124,7 +130,12 @@ export function RecordAudioDrawer({
       setUploading(true);
       try {
         const trackIndex = await getNextTrackIndex();
-        await songApi.uploadRecording(songId, blob, { trackIndex, durationSeconds });
+        await songApi.uploadRecording(songId, blob, {
+          trackIndex,
+          durationSeconds,
+          sectionId: sectionId ?? undefined,
+          label: recordingLabel ?? undefined,
+        });
         onSuccess();
         onOpenChange(false);
         toast.success('Audio saved');
@@ -137,7 +148,7 @@ export function RecordAudioDrawer({
     recorder.start(1000);
     recorderRef.current = recorder;
     setRecording(true);
-  }, [songId, getNextTrackIndex, onSuccess, onOpenChange]);
+  }, [songId, sectionId, recordingLabel, getNextTrackIndex, onSuccess, onOpenChange]);
 
   const stopRecording = useCallback(() => {
     if (recorderRef.current && recorderRef.current.state === 'recording') {
@@ -193,7 +204,12 @@ export function RecordAudioDrawer({
         } catch {
           // omit duration if we can't read it
         }
-        await songApi.uploadRecording(songId, file, { trackIndex, durationSeconds });
+        await songApi.uploadRecording(songId, file, {
+          trackIndex,
+          durationSeconds,
+          sectionId: sectionId ?? undefined,
+          label: recordingLabel ?? undefined,
+        });
         onSuccess();
         onOpenChange(false);
         toast.success('Audio saved');
@@ -204,14 +220,14 @@ export function RecordAudioDrawer({
         e.target.value = '';
       }
     },
-    [songId, getNextTrackIndex, getAudioDuration, onSuccess, onOpenChange]
+    [songId, sectionId, recordingLabel, getNextTrackIndex, getAudioDuration, onSuccess, onOpenChange]
   );
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange} direction="bottom">
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>Add Audio</DrawerTitle>
+          <DrawerTitle>{sectionId && recordingLabel ? `Record: ${recordingLabel}` : 'Add Audio'}</DrawerTitle>
         </DrawerHeader>
         <div className="px-4 pb-8 space-y-4">
           {micError && (

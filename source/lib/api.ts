@@ -68,6 +68,13 @@ import {
   setTourState as setLocalTourState,
   type LocalNote,
 } from './localDb';
+import {
+  deleteLocalRecordingsForSong,
+  getCachedRecordingUrl,
+  listLocalRecordings,
+  saveLocalRecording,
+  setLocalRecordingArchived,
+} from './localRecordings';
 
 const NOT_IN_LOCAL = (feature: string) =>
   new Error(`${feature} is not available in this local-only version yet.`);
@@ -305,8 +312,9 @@ export const songApi = {
     violationReason: 'Certificates are not available in the local version yet.',
   }),
 
-  getRecordings: async (_songId: string): Promise<Recording[]> => [],
-  getRecordingArtifactUrl: (_songId: string, _recordingId: string): string => '#',
+  getRecordings: async (songId: string): Promise<Recording[]> => listLocalRecordings(songId),
+  getRecordingArtifactUrl: (_songId: string, recordingId: string): string =>
+    getCachedRecordingUrl(recordingId) ?? '#',
   getLyricsScans: async (_songId: string): Promise<LyricsScan[]> => [],
   getLyricsFiles: async (_songId: string): Promise<LyricsFile[]> => [],
   getLyricsScanArtifactUrl: (_songId: string, _scanId: string): string => '#',
@@ -480,8 +488,12 @@ export const songApi = {
   unarchiveVideo: async (..._args: unknown[]): Promise<void> => {},
   archiveLyricsScan: async (..._args: unknown[]): Promise<void> => {},
   unarchiveLyricsScan: async (..._args: unknown[]): Promise<void> => {},
-  archiveRecording: async (..._args: unknown[]): Promise<void> => {},
-  unarchiveRecording: async (..._args: unknown[]): Promise<void> => {},
+  archiveRecording: async (_songId: string, recordingId: string): Promise<void> => {
+    await setLocalRecordingArchived(recordingId, true);
+  },
+  unarchiveRecording: async (_songId: string, recordingId: string): Promise<void> => {
+    await setLocalRecordingArchived(recordingId, false);
+  },
 
   /* individual song mutations */
   createSong: async (): Promise<{ songId: string }> => ({ songId: createSongRecord().songId }),
@@ -542,10 +554,17 @@ export const songApi = {
   },
   deleteSong: async (songId: string): Promise<void> => {
     removeSongRecord(songId);
+    await deleteLocalRecordingsForSong(songId);
   },
 
-  uploadRecording: async (..._args: unknown[]): Promise<{ recordingId: string }> => {
-    throw NOT_IN_LOCAL('Recording');
+  uploadRecording: async (
+    songId: string,
+    blob: Blob,
+    options?: { sectionId?: string | null; trackIndex?: number; label?: string; durationSeconds?: number }
+  ): Promise<{ recordingId: string }> => {
+    requireSong(songId);
+    const rec = await saveLocalRecording(songId, blob, options ?? {});
+    return { recordingId: rec.recordingId };
   },
   uploadMixdown: async (..._args: unknown[]): Promise<{ recordingId: string }> => {
     throw NOT_IN_LOCAL('Recording');

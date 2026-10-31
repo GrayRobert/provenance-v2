@@ -252,9 +252,9 @@ export default function SongsPage() {
   };
 
 
-  const handleExportBackup = () => {
+  const handleExportBackup = async () => {
     try {
-      const backup = buildBackup();
+      const backup = await buildBackup();
       const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -281,7 +281,7 @@ export default function SongsPage() {
     setRestoring(true);
     try {
       const text = await file.text();
-      const result = restoreBackup(text);
+      const result = await restoreBackup(text);
       toast.success(`Restored ${result.songsRestored} song${result.songsRestored === 1 ? '' : 's'} from the backup.`);
       await loadSongs();
     } catch (err) {
