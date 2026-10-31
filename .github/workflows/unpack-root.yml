@@ -1,0 +1,30 @@
+name: Unpack root site and source
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  unpack:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download release assets
+        run: |
+          curl -fL -o /tmp/root-site.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/9-root-site.zip
+          curl -fL -o /tmp/source.zip https://github.com/GrayRobert/provenance-v2/releases/download/v0.2-preview/9-source.zip
+      - name: Unpack site into repo root and source into source/
+        run: |
+          rm -rf preview source
+          unzip -oq /tmp/root-site.zip -d .
+          mkdir -p source
+          unzip -oq /tmp/source.zip -d source
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Deploy local-first app to repo root and add source tree" || echo "no changes"
+          git push
