@@ -297,8 +297,8 @@ export function RecordAudioDrawer({
               </>
             )}
             <p className="text-xs text-muted-foreground">
-              Uploads: MP3, M4A, OGG, or WebM — max {uploadMaxMb(UPLOAD_MAX_AUDIO_BYTES)} MB. WAV/FLAC not
-              accepted. In-app recording uses WebM.
+              Uploads: MP3, M4A, AAC, OGG, or WebM — max {uploadMaxMb(UPLOAD_MAX_AUDIO_BYTES)} MB. WAV/FLAC
+              not accepted. In-app recording uses your browser's format (WebM, or MP4/AAC on iPhone).
             </p>
             <button
               type="button"
