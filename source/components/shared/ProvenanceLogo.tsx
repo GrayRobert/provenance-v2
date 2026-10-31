@@ -43,7 +43,7 @@ export function ProvenanceLogo({
 }: ProvenanceLogoProps) {
   const icon = (
     <Image
-      src="/logo/8thnote_cropped.svg"
+      src="/provenance-v2/logo/8thnote_cropped.svg"
       alt=""
       width={iconSize}
       height={iconSize}

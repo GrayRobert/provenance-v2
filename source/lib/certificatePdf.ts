@@ -34,7 +34,7 @@ export interface CertificatePdfPayload {
   }>;
   /** Optional QR code as data URL (authenticate URL); when set, included in Verification section. */
   qrDataUrl?: string;
-  /** Optional logo image URL (e.g. origin + '/logo/8thnote_cropped.svg'); when set, shown in header. */
+  /** Optional logo image URL (e.g. origin + '/provenance-v2/logo/8thnote_cropped.svg'); when set, shown in header. */
   logoUrl?: string;
   /** Full URL to verify this certificate (e.g. https://provenancemusic.com/authenticate/{id} in prod, http://localhost:3000/authenticate/{id} in dev); when set, shown as hyperlink in Verification section. */
   verifyUrl?: string;

@@ -31,7 +31,7 @@ interface ChordsDbInstrument {
   suffixes?: string[];
 }
 
-const UKULELE_JSON_URL = '/chords/ukulele.json';
+const UKULELE_JSON_URL = '/provenance-v2/chords/ukulele.json';
 
 let ukuleleData: ChordsDbInstrument | null = null;
 let ukuleleLoadPromise: Promise<ChordsDbInstrument> | null = null;

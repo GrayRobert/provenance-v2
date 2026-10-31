@@ -37,7 +37,7 @@ export async function exportCertificatePdf(payload: CertificatePdfPayload): Prom
   }
   const logoUrl =
     typeof window !== 'undefined'
-      ? `${window.location.origin}/logo/8thnote_cropped.png`
+      ? `${window.location.origin}/provenance-v2/logo/8thnote_cropped.png`
       : undefined;
   const verifyUrl = getAuthenticateUrl(payload.certificateId);
   const payloadWithQr = { ...payload, qrDataUrl, logoUrl, verifyUrl };

@@ -377,7 +377,7 @@ export function createAudioEngine() {
       }
       // Load Dattorro reverb worklet so we can use it when reverb is first used
       audioContext.audioWorklet
-        .addModule('/audio/dattorroReverb.js')
+        .addModule('/provenance-v2/audio/dattorroReverb.js')
         .then(() => {
           dattorroWorkletLoaded = true;
         })
