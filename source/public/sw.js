@@ -5,7 +5,7 @@
    Navigations are cache-first with background revalidation, so the installed app
    launches instantly and keeps working fully offline. Song data lives in
    localStorage/IndexedDB on the device. */
-const CACHE = 'provenance-v2-shell-v2';
+const CACHE = 'provenance-v2-shell-v3';
 const BASE = '/provenance-v2';
 const ROUTES = ['/', '/song/', '/songs/', '/chord-finder/', '/chords/', '/song/timeline/'];
 const CORE = [
