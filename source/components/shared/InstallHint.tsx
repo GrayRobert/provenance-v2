@@ -2,45 +2,47 @@
 
 import { useEffect, useState } from "react";
 
-/**
- * "Add to Home Screen" hint. iOS Safari has no programmatic install prompt,
- * so on iPhones/iPads that aren't already running installed, show a small
- * dismissible banner explaining the Share -> Add to Home Screen flow.
- * Also requests persistent storage where supported (no-op on iOS).
- */
+type InstallHintKind = "ios" | "android";
+
 export default function InstallHint() {
-  const [show, setShow] = useState(false);
+  const [kind, setKind] = useState<InstallHintKind | null>(null);
 
   useEffect(() => {
     try {
       if (navigator.storage && navigator.storage.persist) {
         navigator.storage.persist().catch(() => {});
       }
+
       const ua = navigator.userAgent;
-      const isiOS =
+      const isIOS =
         /iPad|iPhone|iPod/.test(ua) ||
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+      const isAndroid = /Android/i.test(ua);
       const standalone =
-        (window.navigator as { standalone?: boolean }).standalone === true ||
-        window.matchMedia("(display-mode: standalone)").matches;
-      if (!isiOS || standalone) return;
+        (window.navigator as Navigator & { standalone?: boolean }).standalone ===
+          true || window.matchMedia("(display-mode: standalone)").matches;
+
+      if (standalone || (!isIOS && !isAndroid)) return;
       if (localStorage.getItem("provenance-install-dismissed")) return;
-      setShow(true);
+      setKind(isIOS ? "ios" : "android");
     } catch {
-      // never block the app on a hint
+      // Never block the app on an install hint.
     }
   }, []);
 
-  if (!show) return null;
+  if (!kind) return null;
+
+  const steps =
+    kind === "ios"
+      ? "Tap your browser's Share button, then choose Add to Home Screen."
+      : "Open your browser's menu, then choose Install app or Add to Home screen.";
 
   return (
     <div className="fixed inset-x-3 bottom-3 z-50 flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm leading-snug text-zinc-50 shadow-lg">
       <div>
         <strong>Install Provenance</strong>
         <br />
-        In Safari, tap the Share button, then{" "}
-        <strong>Add to Home Screen</strong>. It opens full-screen and keeps
-        working offline.
+        {steps} It opens full-screen and keeps working offline.
       </div>
       <button
         className="ml-auto shrink-0 rounded-lg border border-zinc-700 px-2.5 py-1.5 text-xs text-zinc-400"
@@ -48,7 +50,7 @@ export default function InstallHint() {
           try {
             localStorage.setItem("provenance-install-dismissed", "1");
           } catch {}
-          setShow(false);
+          setKind(null);
         }}
       >
         Not now
