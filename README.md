@@ -3,8 +3,8 @@
 **A local-first songwriting app that keeps a record of how each song was made.**
 
 **Live demo:** https://grayrobert.github.io/provenance-v2/ (runs entirely in the browser - no sign-up, nothing to install)
+
 **Install it as an app:** On iPhone or iPad, open the demo in your browser, tap Share, then **Add to Home Screen**. On Android, open the browser menu and choose **Install app** or **Add to Home screen**. On desktop, use the browser's install option. It launches full-screen and works offline after the first visit has cached its files.
-**Install it as an app:** open the demo in Safari on an iPhone or iPad, tap Share, then **Add to Home Screen**. It launches full-screen and keeps working offline; on Android/desktop, use the browser's Install option. Everything is cached on the device after the first visit.
 
 ---
 
