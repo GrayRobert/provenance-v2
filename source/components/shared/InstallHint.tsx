@@ -38,7 +38,7 @@ export default function InstallHint() {
       : "Open your browser's menu, then choose Install app or Add to Home screen.";
 
   return (
-    <div className="fixed inset-x-3 bottom-3 z-50 flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm leading-snug text-zinc-50 shadow-lg">
+    <div className="fixed inset-x-3 bottom-20 z-50 flex items-start gap-3 rounded-xl border border-zinc-700 bg-zinc-900 p-3 text-sm leading-snug text-zinc-50 shadow-lg">
       <div>
         <strong>Install Provenance</strong>
         <br />
