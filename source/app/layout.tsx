@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import ServiceWorkerRegistration from "@/components/shared/ServiceWorkerRegistration";
+import InstallHint from "@/components/shared/InstallHint";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./ThemeProvider";
@@ -19,6 +20,7 @@ const geistMono = Geist_Mono({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#0a0a0a",
 };
 
 export const metadata: Metadata = {
@@ -29,7 +31,12 @@ export const metadata: Metadata = {
       { url: "/favicon.ico", sizes: "48x48" },
       { url: "/icon.svg", type: "image/svg+xml" },
     ],
-    apple: "/apple-icon.png",
+    apple: "/provenance-v2/icons/apple-touch-icon.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Provenance",
+    statusBarStyle: "black-translucent",
   },
 };
 
@@ -66,6 +73,7 @@ export default function RootLayout({
           <ChatUnreadProvider>{children}</ChatUnreadProvider>
         </ThemeProvider>
         <ServiceWorkerRegistration />
+        <InstallHint />
         <Toaster />
       </body>
     </html>

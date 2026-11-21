@@ -4,6 +4,8 @@
 
 **Live demo:** https://grayrobert.github.io/provenance-v2/ (runs entirely in the browser - no sign-up, nothing to install)
 
+**Install it as an app:** open the demo in Safari on an iPhone or iPad, tap Share, then **Add to Home Screen**. It launches full-screen and keeps working offline; on Android/desktop, use the browser's Install option. Everything is cached on the device after the first visit.
+
 ---
 
 ## What it is
@@ -60,6 +62,7 @@ The original hosted app implemented RFC 3161 timestamping, allowing certificate 
 - **@tombatossals/chords-db** chord library with local guitar voicings
 - **@react-pdf/renderer** for the certificate PDF
 - Local persistence: localStorage (songs, history, profile) + IndexedDB (audio)
+- **Offline PWA** - installable to the Home Screen; a service worker precaches the app shell so it runs with no network
 - Tests with Vitest + Testing Library
 
 ## Run it locally
